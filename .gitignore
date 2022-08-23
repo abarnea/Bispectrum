@@ -171,3 +171,12 @@ test-report.xml
 # Rever
 rever/
 miniconda3/
+
+maps/
+masks/
+pickles/
+*.pickle
+*.fits
+*.bin
+*.npy
+plots/
