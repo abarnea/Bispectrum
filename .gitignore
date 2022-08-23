@@ -174,9 +174,5 @@ miniconda3/
 
 maps/
 masks/
-pickles/
-*.pickle
-*.fits
-*.bin
-*.npy
+pickled_data/
 plots/

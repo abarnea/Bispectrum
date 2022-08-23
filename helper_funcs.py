@@ -310,23 +310,17 @@ def split_bls(bls, get='both'):
     else:
         return None
 
-def bispec_range(input_map, lmax, lmax2=None, lmax3=None, lmin=0, scheme='e', ell_interval=20, num_threads=32):
+def bispec_range_eq(input_map, ells=np.arange(1, 500, 2), num_threads=32):
 
+    lmax = np.max(ells)
     alms = hp.map2alm(input_map)
     sorted_alms = sort_alms(alms, lmax+1)
 
     bls = {}
     
-    if scheme == 'e':
-        assert ell_interval % 2 == 0
-        ells = np.arange(lmin, lmax+1, ell_interval) # loop over only even ell-triplets at intervals 'ell_interval'
-        for l in tqdm(ells, "Looping over even equilateral ell-triplets"):
-        # for l in ells:
-            bls[(l, l, l)] = compute_bispec_jit(l, l, l, sorted_alms[l], sorted_alms[l], sorted_alms[l], num_threads=num_threads)
-    elif scheme == 'sq':
-        print("not done yet!")
-    elif scheme == 'flat':
-        print('not done yet!')
+    for l in tqdm(ells, "Looping over even equilateral ell-triplets"):
+    # for l in ells:
+        bls[(l, l, l)] = compute_bispec_jit(l, l, l, sorted_alms[l], sorted_alms[l], sorted_alms[l], num_threads=num_threads)
     
     return bls
 
