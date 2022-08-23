@@ -1,2 +1,2 @@
 # Bispectrum
-Bispectrum Calculations in Harmonic Space for Argonne National Laboratory
+Bispectrum Calculations in harmonic space for Argonne National Laboratory
