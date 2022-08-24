@@ -265,7 +265,7 @@ def compute_bispec_wig(l1, l2, l3, alms_l1, alms_l2, alms_l3):
             w3j = get_w3j(l1, l2, l3, m1, m2, m3)
             if w3j != 0:
                 exp_alms = alms_l1[m1] * alms_l2[m2] * alms_l3[m3]
-                bispec_sum += w3j * exp_alms
+                bispec_sum += w3j * np.abs(exp_alms)
 
     norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) * (get_w3j(l1, l2, l3, 0, 0, 0))**2
 
@@ -357,7 +357,7 @@ def get_bls_extrema(bls_gauss, bls_nongauss, xlmin=None, xlmax=None):
         nongauss_max = np.max(split_bls(bls_nongauss, get='bls'))
     return gauss_min, nongauss_min, gauss_max, nongauss_max
 
-def plot_bispec_eq(bls_list, labels=None, figsize=(12, 6), xlmin=0, xlmax=None, xscale='linear', yscale='linear', xlabel="even multipole triplet $(\ell_1, \ell_2, \ell_3)$", ylabel="$B_{(\ell_1, \ell_2, \ell_3)}$", title="Bispectrum", scheme='e'):
+def plot_bispec_eq(bls_list, labels=None, figsize=(12,6), xlmin=0, xlmax=None, xscale='linear', yscale='linear', xlabel="even multipole triplet $(\ell_1, \ell_2, \ell_3)$", ylabel="$B_{(\ell_1, \ell_2, \ell_3)}$", title="Bispectrum", scheme='e'):
     if scheme == 'e':
         plt.figure(figsize=figsize)
         assert type(bls_list) is list
