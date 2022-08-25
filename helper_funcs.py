@@ -12,12 +12,18 @@ from astropy.constants import c
 from astropy.units import u
 import pyccl as ccl
 import pywigxjpf as wig
+import pywigxjpf_ffi
+from pywigxjpf_ffi import ffi, lib
 import math
 
 from tqdm.notebook import tqdm
 from spherical import Wigner3j
 from numba import jit, njit, prange, set_num_threads
 from numba_progress import ProgressBar
+from numba.core.typing import cffi_utils as cffi_support
+cffi_support.register_module(pywigxjpf_ffi)
+
+nb_wig3jj = pywigxjpf_ffi.lib.wig3jj
 
 def mask_map(map_file, mask_file):
     mask = hp.read_map(mask_file).astype(np.bool_)
@@ -247,9 +253,15 @@ def check_alm_nan(alms):
 
 # pywigxjpf
 def get_w3j(j1, j2, j3, m1, m2, m3):
-    return wig.wig3jj(2*j1, 2*j2, 2*j3, 2*m1, 2*m2, 2*m3)
+    return nb_wig3jj(2*j1, 2*j2, 2*j3, 2*m1, 2*m2, 2*m3)
 
-def compute_bispec_wig(l1, l2, l3, alms_l1, alms_l2, alms_l3):
+@njit(parallel=True)
+def compute_bispec_wig(l1, l2, l3, alms_l1, alms_l2, alms_l3, num_threads=16):
+
+    set_num_threads(num_threads)
+
+    wig.wig_table_init((max(l1, l2, l3)+1)*2, 3)
+    wig.wig_temp_init((max(l1, l2, l3)+1)*2)
 
     assert (l1 + l2 + l3) % 2 == 0, "even parity not satisfied" # even parity
     assert np.abs(l1-l2) <= l3, "LHS of triangle inequality not satisfied" # triangle inequality LHS
@@ -259,15 +271,18 @@ def compute_bispec_wig(l1, l2, l3, alms_l1, alms_l2, alms_l3):
 
     # alms_l1, alms_l2, alms_l3 = alms_l1.real, alms_l2.real, alms_l3.real
 
-    for m1 in range(-l1, l1+1):
+    for m1 in prange(-l1, l1+1):
         for m2 in range(-l2, l2+1):
             m3 = -(m1 + m2) # condition that m1 + m2 + m3 == 0 fully determines m3
-            w3j = get_w3j(l1, l2, l3, m1, m2, m3)
+            w3j = nb_wig3jj(2*l1, 2*l2, 2*l3, 2*m1, 2*m2, 2*m3)
             if w3j != 0:
                 exp_alms = alms_l1[m1] * alms_l2[m2] * alms_l3[m3]
                 bispec_sum += w3j * np.abs(exp_alms)
 
-    norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) * (get_w3j(l1, l2, l3, 0, 0, 0))**2
+    norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) * (nb_wig3jj(2*l1, 2*l2, 2*l3, 0, 0, 0))**2
+
+    wig.wig_temp_free()
+    wig.wig_table_free()
 
     return np.sqrt(norm_factor) * bispec_sum
 
@@ -320,7 +335,7 @@ def bispec_range_eq(input_map, ells=np.arange(1, 500, 2), num_threads=32):
     
     for l in tqdm(ells, "Looping over even equilateral ell-triplets"):
     # for l in ells:
-        bls[(l, l, l)] = compute_bispec_jit(l, l, l, sorted_alms[l], sorted_alms[l], sorted_alms[l], num_threads=num_threads)
+        bls[(l, l, l)] = compute_bispec_wig(l, l, l, sorted_alms[l], sorted_alms[l], sorted_alms[l], num_threads=num_threads)
     
     return bls
 
