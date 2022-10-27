@@ -171,8 +171,3 @@ test-report.xml
 # Rever
 rever/
 miniconda3/
-
-maps/
-masks/
-pickled_data/
-plots/
