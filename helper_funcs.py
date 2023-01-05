@@ -204,7 +204,7 @@ def compute_cls(sorted_alms):
     '''
     cls = np.zeros(len(sorted_alms))
 
-    for l in sorted_alms.keys():
+    for l in sorted_alms:
         cls[l] = 1/(2*l+1) * np.sum(np.abs(sorted_alms[l])**2)
 
     return cls
@@ -286,31 +286,31 @@ def compute_bispec_wig(l1, l2, l3, alms_l1, alms_l2, alms_l3, num_threads=16):
 
     return np.sqrt(norm_factor) * bispec_sum
 
-@njit(parallel=True)
-def compute_bispec_jit(l1, l2, l3, alms_l1, alms_l2, alms_l3, num_threads=16):
+# @njit(parallel=True)
+# def compute_bispec_jit(l1, l2, l3, alms_l1, alms_l2, alms_l3, num_threads=16):
 
-    set_num_threads(num_threads)
+#     set_num_threads(num_threads)
 
-    assert (l1 + l2 + l3) % 2 == 0, "even parity not satisfied" # even parity
-    assert np.abs(l1-l2) <= l3, "LHS of triangle inequality not satisfied" # triangle inequality LHS
-    assert l3 <= l1+l2, "RHS of triangle inequality not satisfied" # triangle inequality RHS
+#     assert (l1 + l2 + l3) % 2 == 0, "even parity not satisfied" # even parity
+#     assert np.abs(l1-l2) <= l3, "LHS of triangle inequality not satisfied" # triangle inequality LHS
+#     assert l3 <= l1+l2, "RHS of triangle inequality not satisfied" # triangle inequality RHS
 
-    bispec_sum = 0
+#     bispec_sum = 0
 
-    # alms_l1, alms_l2, alms_l3 = np.abs(alms_l1), np.abs(alms_l2), np.abs(alms_l3)
-    # alms_l1, alms_l2, alms_l3 = alms_l1.real, alms_l2.real, alms_l3.real
+#     # alms_l1, alms_l2, alms_l3 = np.abs(alms_l1), np.abs(alms_l2), np.abs(alms_l3)
+#     # alms_l1, alms_l2, alms_l3 = alms_l1.real, alms_l2.real, alms_l3.real
 
-    for m1 in prange(-l1, l1+1):
-        for m2 in range(-l2, l2+1):
-            m3 = -(m1 + m2) # condition that m1 + m2 + m3 == 0 fully determines m3
-            w3j = Wigner3j(l1, l2, l3, m1, m2, m3)
-            if w3j != 0:
-                exp_alms = alms_l1[m1] * alms_l2[m2] * alms_l3[m3]
-                bispec_sum += w3j * np.abs(exp_alms)
+#     for m1 in prange(-l1, l1+1):
+#         for m2 in range(-l2, l2+1):
+#             m3 = -(m1 + m2) # condition that m1 + m2 + m3 == 0 fully determines m3
+#             w3j = Wigner3j(l1, l2, l3, m1, m2, m3)
+#             if w3j != 0:
+#                 exp_alms = alms_l1[m1] * alms_l2[m2] * alms_l3[m3]
+#                 bispec_sum += w3j * np.abs(exp_alms)
     
-    norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) * (Wigner3j(l1, l2, l3, 0, 0, 0))**2
+#     norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) * (Wigner3j(l1, l2, l3, 0, 0, 0))**2
 
-    return np.sqrt(norm_factor) * bispec_sum
+#     return np.sqrt(norm_factor) * bispec_sum
 
 def split_bls(bls, get='both'):
     sorted_bls = sorted(bls.items()) # sorted by key, return a list of tuples
@@ -377,8 +377,7 @@ def plot_bispec_eq(bls_list, labels=None, figsize=(12,6), xlmin=0, xlmax=None, x
         plt.figure(figsize=figsize)
         assert type(bls_list) is list
         for bl,label in zip(bls_list,labels):
-            ell_triplets, bls = split_bls(bl)
-            ells = np.array(ell_triplets)[:,0]
+            ells, bls = split_bls(bl)
             step = ells[1]-ells[0]
             if xlmax is None:
                 xlmax = np.max(ells)
