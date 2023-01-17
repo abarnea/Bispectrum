@@ -169,7 +169,7 @@ def sort_alms(alms, lmax):
     
     Returns
     ----------
-    sorted_alms : alm dictionary keyed by \ell values with numpy arrays consisting of the corresponding m values.
+    sorted_alms : alm dictionary keyed by ell values with numpy arrays consisting of the corresponding m values.
     '''
     start = 0
     sorted_alms = {}
@@ -179,7 +179,7 @@ def sort_alms(alms, lmax):
 
     for m in range(lmax):
         num_ms = lmax - m
-        ms = alms[start:num_ms+start]
+        ms = alms[start:num_ms + start]
         start = num_ms + start
         m_sign = (-1)**m
         for l in range(num_ms):
