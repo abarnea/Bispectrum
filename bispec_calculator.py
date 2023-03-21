@@ -18,7 +18,8 @@ def sort_alms(alms, lmax):
     
     Returns
     ----------
-    sorted_alms : alm dictionary keyed by ell values with numpy arrays consisting of the corresponding m values.
+    sorted_alms : alm dictionary keyed by ell values with numpy arrays 
+                    consisting of the corresponding m values.
     '''
     start = 0
     sorted_alms = {}
@@ -144,9 +145,42 @@ def get_three_filtered_maps(sorted_alms, i1, i2, i3, nside=1024):
     map_i3 = filter_map_binned(sorted_alms, i3, nside=nside)
     return map_i1, map_i2, map_i3
 
-def create_bins(lmin, lmax, nbins):
-    i = np.arange(lmin, lmax + 1, nbins)
-    return i, i, i
+def create_bins(lmin, lmax, nbins=1):
+    """
+    Creates bins in an ell-range.
+
+    Parameters:
+        lmin (int) : min ell value of bins
+        lmax (int) : max ell value of bins
+        nbins (int) : number of bins
+    
+    Returns:
+        bins (list of ndarray) : all the bins
+    """
+    bin_range = np.linspace(lmin, lmax, nbins + 1)
+
+    min_val = bin_range[:-1]
+    max_val = bin_range[1:]
+
+    bins = []
+
+    for i in range(nbins):
+        bins.append(np.arange(min_val[i], max_val[i]))
+    
+    return bins
+
+def select_bins(lmin, lmax, nbins=1, bins_to_use=[0, 0, 0]):
+    bin1, bin2, bin3 = bins_to_use
+    bins = create_bins(lmin, lmax, nbins)
+    return bins[bin1], bins[bin2], bins[bin3]
+
+def create_bins_and_maps(sorted_alms, lmin, lmax, nbins, bins_to_use=[0, 0, 0]):
+    bins = create_bins(lmin, lmax, nbins)
+    i1_bin, i2_bin, i3_bin = select_bins(bins, bins_to_use)
+    i1_map, i2_map, i3_map = get_three_filtered_maps(sorted_alms, i1_bin, i2_bin, i3_bin)
+
+    return i1_bin, i2_bin, i3_bin, i1_map, i2_map, i3_map
+
 
 def get_pix_area(map):
     return hp.nside2pixarea(hp.get_nside(map))
@@ -198,7 +232,6 @@ def find_valid_configs(i1, i2, i3, num_threads=16):
     # num_configs = count_valid_configs(i1, i2, i3, num_threads=num_threads)
     
     # lmin1, lmax1 = i1.min(), i1.max()
-    # step = int((lmax1 - lmin1)/(i1.shape[0] - 1))
 
     valid_configs = List()
 
@@ -277,9 +310,24 @@ def compute_averaged_bispec(i1, i2, i3, sorted_alms, num_threads=16):
 
     bls = 0
     for l1, l2, l3 in configs:
-        bls += compute_bispec(l1, l2, l3, sorted_alms[l1], sorted_alms[l2], sorted_alms[l3], num_threads=num_threads)
+        bls += compute_bispec(l1, l2, l3, sorted_alms[l1], sorted_alms[l2], \
+                                    sorted_alms[l3], num_threads=num_threads)
     
     return bls / len(configs)
+
+
+# def compute_averaged_bispec_long(i1, i2, i3, sorted_alms, num_threads=16):
+
+#     count = 0
+#     bls = 0
+#     for i, l1 in enumerate(i1):
+#         for l2 in i2[i:]:
+#             for l3 in i3[i:]:
+#                 if check_valid_triangle(l1, l2, l3):
+#                     bls += compute_bispec(l1, l2, l3, sorted_alms[l1], \
+#                         sorted_alms[l2], sorted_alms[l3], num_threads=num_threads)
+    
+#     return bls / count
 
 def find_bispec_var(l1, l2, l3, binned=False):
     val_init = (max(l1, l2, l3) + 1) * 2
