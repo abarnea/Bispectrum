@@ -1,24 +1,24 @@
 import numpy as np
 import healpy as hp
-import scipy
 from numba import jit, njit, prange, set_num_threads
-from numba.typed import List, Dict
+from typing import Tuple, List
+# from numba.typed import List, Dict
 from tqdm.notebook import tqdm
 from helper_funcs import *
 
 
-def sort_alms(alms, lmax):
+def sort_alms(alms: np.ndarray, lmax: int) -> dict:
     '''
     Sorts healpix alm's by \ell instead of m given a fortran90 array output from hp.map2alm.
 
     Parameters
     ----------
-    alms : fortran90 healpix alm array from hp.map2alm
-    num_ls : number of l's in alms array
+    alms (ndarray) : fortran90 healpix alm array from hp.map2alm
+    num_ls (int ): number of l's in alms array
     
     Returns
     ----------
-    sorted_alms : alm dictionary keyed by ell values with numpy arrays 
+    sorted_alms (dict) : alm dictionary keyed by ell values with numpy arrays 
                     consisting of the corresponding m values.
     '''
     start = 0
@@ -41,7 +41,7 @@ def sort_alms(alms, lmax):
     return sorted_alms
 
 
-def unsort_alms(sorted_alms):
+def unsort_alms(sorted_alms: dict) -> np.ndarray:
     """
     Unsorts a sorted_alm dictionary from sorted_alms into a Fortran90
     array that can be processed by HEALPix.
@@ -65,7 +65,7 @@ def unsort_alms(sorted_alms):
     return unsorted_alms
 
 @njit
-def check_valid_triangle(l1, l2, l3):
+def check_valid_triangle(l1: int, l2: int, l3: int) -> bool:
     """
     Checks if a set of l1, l2, l3's form a valid triangle, which can be
     confirmed if the l's satisfy the following three metrics:
@@ -88,7 +88,10 @@ def check_valid_triangle(l1, l2, l3):
     return permutations and even_parity and tri_inequality
 
 @njit
-def count_valid_configs(i1, i2, i3, num_threads=16):
+def count_valid_configs(i1: np.ndarray,
+                        i2: np.ndarray,
+                        i3: np.ndarray,
+                        num_threads=16) -> int:
     """
     Counts the number of valid ell-triplet configurations in a single bin.
     Validity is determined as satisfying the parity condition selection
@@ -116,15 +119,15 @@ def count_valid_configs(i1, i2, i3, num_threads=16):
     
     return configs
 
-def filter_map_binned(sorted_alms, i_bins, nside=1024):
+
+def filter_map_binned(sorted_alms: dict, bin: np.ndarray, nside=1024) -> np.ndarray:
     """
     Map alms that have been binned and filtered.
 
     Inputs:
         sorted_alms (dict) : dictionary of sorted alms
-        lmin (int) : lmin
-        lmax (int) : lmax
-        nbins (int) : number of bins
+        bin (int) : bin to filter
+        nside (int) : nside
     
     Returns:
         (ndarray) : healpix map of filtered alms
@@ -134,18 +137,13 @@ def filter_map_binned(sorted_alms, i_bins, nside=1024):
     for ell in range(lmax + 1):
         filtered_alms[ell] = np.zeros(2 * ell + 1, dtype=np.cdouble)
 
-    for ell in i_bins:
+    for ell in bin:
         filtered_alms[ell] = sorted_alms[ell]
     
     return hp.alm2map(unsort_alms(filtered_alms), nside=nside)
 
-def get_three_filtered_maps(sorted_alms, i1, i2, i3, nside=1024):
-    map_i1 = filter_map_binned(sorted_alms, i1, nside=nside)
-    map_i2 = filter_map_binned(sorted_alms, i2, nside=nside)
-    map_i3 = filter_map_binned(sorted_alms, i3, nside=nside)
-    return map_i1, map_i2, map_i3
 
-def create_bins(lmin, lmax, nbins=1):
+def create_bins(lmin: int, lmax: int, nbins=1) -> List[np.ndarray]:
     """
     Creates bins in an ell-range.
 
@@ -169,38 +167,107 @@ def create_bins(lmin, lmax, nbins=1):
     
     return bins
 
-def select_bins(lmin, lmax, nbins=1, bins_to_use=[0, 0, 0]):
+
+def select_bins(lmin: int,
+                lmax: int,
+                nbins=1,
+                bins_to_use=[0, 0, 0]) -> Tuple(np.ndarray, np.ndarray, np.ndarray):
+    """
+    Creates and selects bins to use from a range of ell-values and a given
+    number of bins.
+
+    Parameters:
+        lmin (int) : minimum ell value of the bins
+        lmax (int) : maximum ell value of the bins
+        nbins (int) : number of bins to create
+        bins_to_use (List[int, int, int]) : bin numbers to use starting at 0
+    
+    Returns:
+        (ndarray, ndarray, ndarray) : three selected bins
+    """
     bin1, bin2, bin3 = bins_to_use
     bins = create_bins(lmin, lmax, nbins)
     return bins[bin1], bins[bin2], bins[bin3]
 
-def create_bins_and_maps(sorted_alms, lmin, lmax, nbins, bins_to_use=[0, 0, 0]):
+
+def create_bins_and_maps(sorted_alms: dict,
+                         lmin: int,
+                         lmax: int,
+                         nbins=1,
+                         bins_to_use=[0, 0, 0]) -> List[np.ndarray,
+                                                    np.ndarray,
+                                                    np.ndarray,
+                                                    np.ndarray,
+                                                    np.ndarray,
+                                                    np.ndarray]:
+    """
+    Creates and selects bins from a range of ell-values and a given number of
+    bins, then creates maps based on the three selected bins.
+
+    Parameters:
+        sorted_alms (dict) : alms to map
+        lmin (int) : minimum ell value of the bins
+        lmax (int) : maximum ell value of the bins
+        nbins (int) : number of bins to create
+        bins_to_use (List[int, int, int]) : bin numbers to use starting at 0
+    
+    Returns:
+        i1_bin (ndarray) : first bin
+        i2_bin (ndarray) : second bin
+        i3_bin (ndarray) : third bin
+        i1_map (ndarray) : first bin map
+        i2_map (ndarray) : second bin map
+        i3_map (ndarray) : third bin map
+    """
     bins = create_bins(lmin, lmax, nbins)
     i1_bin, i2_bin, i3_bin = select_bins(bins, bins_to_use)
-    i1_map, i2_map, i3_map = get_three_filtered_maps(sorted_alms, i1_bin, i2_bin, i3_bin)
+    i1_map = filter_map_binned(sorted_alms, i1_bin)
+    i2_map = filter_map_binned(sorted_alms, i2_bin)
+    i3_map = filter_map_binned(sorted_alms, i3_bin)
 
     return i1_bin, i2_bin, i3_bin, i1_map, i2_map, i3_map
 
 
-def get_pix_area(map):
+def get_pix_area(map: np.ndarray) -> int:
+    """
+    Gets the pixel area of a HEALPix map.
+
+    Parameters:
+        map (ndarray) : healpix map
+    
+    Returns:
+        (int) : pixel area
+    """
     return hp.nside2pixarea(hp.get_nside(map))
-
-def get_pix_areas(map1, map2, map3):
-    return get_pix_area(map1), get_pix_area(map2), get_pix_area(map3)
-
-def get_map_sizes(map1, map2, map3):
-    return hp.get_map_size(map1). hp.get_map_size(map2), hp.get_map_size(map3)
 
 
 # @njit(parallel=True)
-def compute_binned_bispec(i1, i2, i3, map_i1, map_i2, map_i3, num_threads=16):
+def compute_binned_bispec(i1: np.ndarray,
+                          i2: np.ndarray,
+                          i3: np.ndarray,
+                          map_i1: np.ndarray,
+                          map_i2: np.ndarray,
+                          map_i3: np.ndarray,
+                          num_threads=16) -> np.ndarray:
     """
     Compute binned bispec
 
     Parameters:
+        i1 (ndarray) : bin1
+        i2 (ndarray) : bin2
+        i3 (ndarray) : bin3
+        map_i1 (ndarray) : i1 bin map
+        map_i2 (ndarray) : i2 bin map
+        map_i3 (ndarray) : i3 bin map
+        num_threads (int) : number of threads to allocate
+    
+    Returns:
+        (ndarray) : binned bispectrum
     """
     xi = count_valid_configs(i1, i2, i3, num_threads=num_threads)
-    assert xi != 0
+    
+    if xi == 0:
+        raise ZeroDivisionError
 
     pixarea = get_pix_area(map_i1)
     B_i = np.sum(map_i1 * map_i2 * map_i3) * pixarea
@@ -211,16 +278,19 @@ def compute_binned_bispec(i1, i2, i3, map_i1, map_i2, map_i3, num_threads=16):
 ## Filter Method
 
 @njit
-def find_valid_configs(i1, i2, i3, num_threads=16):
+def find_valid_configs(i1: np.ndarray,
+                       i2: np.ndarray,
+                       i3: np.ndarray, \
+                       num_threads=16) -> int:
     """
     Counts the number of valid ell-triplet configurations in a single bin.
     Validity is determined as satisfying the parity condition selection
     rule and the triangle inequality.
 
     Inputs:
-        i1 (int) : bin1
-        i2 (int) : bin2
-        i3 (int) : bin3
+        i1 (ndarray) : bin1
+        i2 (ndarray) : bin2
+        i3 (ndarray) : bin3
         num_threads (int) : number of threads to parallelize on
 
     Returns:
@@ -243,13 +313,57 @@ def find_valid_configs(i1, i2, i3, num_threads=16):
 
     return valid_configs
 
+
 @njit
-def compute_bispec_norm_factor(l1, l2, l3):
-    return ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) \
-                        * (nb_wig3jj(2*l1, 2*l2, 2*l3, 0, 0, 0))**2
+def compute_bispec_norm_factor(l1: int, l2: int, l3: int) -> float:
+    """
+    Computes the normalization factor of the averaged Bispectrum equation.
+
+    Parameters:
+        l1 (int) : first ell value
+        l2 (int) : second ell value
+        l3 (int) : third ell value
+    
+    Returns:
+        (float) : normalization factor
+    """
+    val_init = (max(l1, l2, l3) + 1) * 2
+    
+    lib.wig_table_init(val_init, 3)
+    lib.wig_temp_init(val_init)
+    norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) \
+                        * (get_w3j(l1, l2, l3, 0, 0, 0))**2
+    lib.wig_temp_free()
+    lib.wig_table_free()
+
+    return norm_factor
+                        
+
 
 @njit(parallel=True)
-def compute_bispec(l1, l2, l3, alms_l1, alms_l2, alms_l3, num_threads=16):
+def compute_bispec(l1: int,
+                   l2: int,
+                   l3: int,
+                   alms_l1 : dict,
+                   alms_l2 : dict,
+                   alms_l3 : dict,
+                   num_threads=16) -> float:
+    """
+    Computes the bispectrum value of a set of ell-values and alm values and
+    parallelizes computation across 16-threads by default.
+
+    Parameters:
+        l1 (int) : first ell value
+        l2 (int) : second ell value
+        l3 (int) : third ell value
+        alms_l1 (dict) : dictionary of l1 alms
+        alms_l2 (dict) : dictionary of l2 alms
+        alms_l3 (dict) : dictionary of l3 alms
+        num_threads (int) : number of threads to parallelize across
+
+    Returns:
+        (float) : bispectrum value
+    """
 
     if not check_valid_triangle(l1, l2, l3):
         return None
@@ -285,7 +399,7 @@ def compute_bispec(l1, l2, l3, alms_l1, alms_l2, alms_l3, num_threads=16):
     return get_perm_weighting(l1, l2, l3) * np.sqrt(norm_factor) * bispec_sum
 
 @njit
-def get_perm_weighting(l1, l2, l3):
+def get_perm_weighting(l1: int, l2: int, l3: int) -> int:
     """
     Finds the permutation weighting scale factor given 3 inputted ell values.
 
@@ -304,7 +418,24 @@ def get_perm_weighting(l1, l2, l3):
     else:
         return 3
 
-def compute_averaged_bispec(i1, i2, i3, sorted_alms, num_threads=16):
+def compute_averaged_bispec(i1: int,
+                            i2: int,
+                            i3: int,
+                            sorted_alms: dict,
+                            num_threads=16) -> float:
+    """
+    Computes the averaged binned bispectrum.
+
+    Parameters:
+        i1 (ndarray) : first ell bin
+        i2 (ndarray) : second ell bin
+        i3 (ndarray) : third ell bin
+        sorted_alms (dict) : alm values
+        num_threads (int) : number of threads to parallelize computation across
+    
+    Returns:
+        (float) : averaged binned bispectrum value
+    """
     
     configs = find_valid_configs(i1, i2, i3)
 
@@ -329,23 +460,16 @@ def compute_averaged_bispec(i1, i2, i3, sorted_alms, num_threads=16):
     
 #     return bls / count
 
-def find_bispec_var(l1, l2, l3, binned=False):
-    val_init = (max(l1, l2, l3) + 1) * 2
-    
-    lib.wig_table_init(val_init, 3)
-    lib.wig_temp_init(val_init)
-    norm_factor = ((l1 * 2 + 1) * (l2 * 2 + 1) * (l3 * 2 + 1))/(4 * np.pi) * (get_w3j(l1, l2, l3, 0, 0, 0))**2
-    lib.wig_temp_free()
-    lib.wig_table_free()
+def find_bispec_var(l1, l2, l3):
+    norm_factor = compute_bispec_norm_factor(l1, l2, l3)
     
     ells = np.array([l1, l2, l3])
     cls = (ells+0.0)**(-3.)
-    if binned:
-        return norm_factor * np.prod(cls)
-    else:
-        return find_g_val(l1, l2, l3) * norm_factor * np.prod(cls)
 
-def find_binned_bispec_var(i1, i2, i3):
+    return find_g_val(l1, l2, l3) * norm_factor * np.prod(cls)
+
+
+def find_binned_bispec_var(i1: np.ndarray, i2: np.ndarray, i3: np.ndarray) -> np.ndarray:
     """
     Finds the variance of the binned bispectrum according to Eq.
 
@@ -368,8 +492,9 @@ def find_binned_bispec_var(i1, i2, i3):
 
     return g/(num_configs**2) * bls_var
 
+
 @njit
-def find_g_val(val1, val2, val3):
+def find_g_val(val1: int, val2: int, val3: int) -> int:
     """
     Finds the g-value given 3 inputted ell values or bins.
 
