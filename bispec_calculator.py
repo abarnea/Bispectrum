@@ -1,6 +1,6 @@
 import numpy as np
 import healpy as hp
-from numba import jit, njit, prange, set_num_threads
+from numba import njit, prange, set_num_threads
 from typing import Tuple, List
 # from numba.typed import List, Dict
 from tqdm.notebook import tqdm
@@ -18,7 +18,7 @@ def sort_alms(alms: np.ndarray, lmax: int) -> dict:
     
     Returns
     ----------
-    sorted_alms (dict) : alm dictionary keyed by ell values with numpy arrays 
+    sorted_alms (dict) : alm dictionary keyed by ell values with numpy arrays
                     consisting of the corresponding m values.
     '''
     start = 0
@@ -61,8 +61,28 @@ def unsort_alms(sorted_alms: dict) -> np.ndarray:
         for ell in range(m, lmax + 1):
             unsorted_alms[start + ell] = sorted_alms[ell][m]
         start += lmax - m
-    
+
     return unsorted_alms
+
+def filter_alms(alms, bins):
+    """
+    Filters alms without using dictionaries.
+
+    Parameters:
+        alms (ndarray) : alms
+        bins (ndarray) : bins
+    
+    Returns:
+        filtered_alms (ndarray) : filtered alms
+    """
+    lmax = hp.Alm.getlmax(alms.size)
+    filtered_alms = np.zeros_like(alms)
+    for ell in bins:
+        ms = np.arange(-ell, ell + 1)
+        indices = hp.Alm.getidx(lmax, ell, ms).astype(int)
+        filtered_alms[indices] = alms[indices]
+    return filtered_alms
+
 
 @njit
 def check_valid_triangle(l1: int, l2: int, l3: int) -> bool:
@@ -171,7 +191,7 @@ def create_bins(lmin: int, lmax: int, nbins=1) -> List[np.ndarray]:
 def select_bins(lmin: int,
                 lmax: int,
                 nbins=1,
-                bins_to_use=[0, 0, 0]) -> Tuple(np.ndarray, np.ndarray, np.ndarray):
+                bins_to_use=[0, 0, 0]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     Creates and selects bins to use from a range of ell-values and a given
     number of bins.
@@ -190,22 +210,17 @@ def select_bins(lmin: int,
     return bins[bin1], bins[bin2], bins[bin3]
 
 
-def create_bins_and_maps(sorted_alms: dict,
+def create_bins_and_maps(alms: dict,
                          lmin: int,
                          lmax: int,
                          nbins=1,
-                         bins_to_use=[0, 0, 0]) -> List[np.ndarray,
-                                                    np.ndarray,
-                                                    np.ndarray,
-                                                    np.ndarray,
-                                                    np.ndarray,
-                                                    np.ndarray]:
+                         bins_to_use=[0, 0, 0]):
     """
     Creates and selects bins from a range of ell-values and a given number of
     bins, then creates maps based on the three selected bins.
 
     Parameters:
-        sorted_alms (dict) : alms to map
+        alms (ndarray) : alms to map
         lmin (int) : minimum ell value of the bins
         lmax (int) : maximum ell value of the bins
         nbins (int) : number of bins to create
@@ -221,9 +236,9 @@ def create_bins_and_maps(sorted_alms: dict,
     """
     bins = create_bins(lmin, lmax, nbins)
     i1_bin, i2_bin, i3_bin = select_bins(bins, bins_to_use)
-    i1_map = filter_map_binned(sorted_alms, i1_bin)
-    i2_map = filter_map_binned(sorted_alms, i2_bin)
-    i3_map = filter_map_binned(sorted_alms, i3_bin)
+    i1_map = hp.alm2map(filter_alms(alms, i1_bin))
+    i2_map = hp.alm2map(filter_alms(alms, i2_bin))
+    i3_map = hp.alm2map(filter_alms(alms, i3_bin))
 
     return i1_bin, i2_bin, i3_bin, i1_map, i2_map, i3_map
 

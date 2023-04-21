@@ -1,6 +1,4 @@
 import numpy as np
-import astropy
-import scipy
 from scipy.integrate import romberg
 from scipy import interpolate
 from astropy.cosmology import WMAP9 as cosmo
