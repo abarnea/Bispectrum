@@ -78,9 +78,10 @@ def plot_cl(ell, cls_list, labels=None, normalize=False, figsize=(12, 6), xscale
     plt.yticks(fontsize=18)
     plt.grid()
 
-def plot_pk(k, pk_lin, pk_nl=None, figsize=(12,6), xscale='log', 
+def plot_pk(k, pk, pk_2, figsize=(12,6), xscale='log',
                         yscale='log', xlabel='$k\quad[Mpc^{-1}]$', 
-                        ylabel='$P(k)\quad[{\\rm Mpc}]^3$', title="Power Spectrum"):
+                        ylabel='$P(k)\quad[{\\rm Mpc}]^3$', title="Power Spectrum",
+                        label1="Power Spectrum 1", label2="Power Spectrum 2"):
     '''
     Plots the Power Spectrum in k-space
 
@@ -98,10 +99,10 @@ def plot_pk(k, pk_lin, pk_nl=None, figsize=(12,6), xscale='log',
     '''
 
     plt.figure(figsize=figsize)
-    plt.plot(k, pk_lin, 'b-')
+    plt.plot(k, pk, 'b-', label=label1)
 
-    if pk_nl is not None:
-        plt.plot(k, pk_nl, 'r-')
+    if pk_2 is not None:
+        plt.plot(k, pk_2, 'r-', label=label2)
 
     plt.xscale(xscale)
     plt.yscale(yscale)
@@ -111,6 +112,7 @@ def plot_pk(k, pk_lin, pk_nl=None, figsize=(12,6), xscale='log',
     plt.xticks(fontsize=14)
     plt.yticks(fontsize=14)
 
+    plt.legend(frameon=False, loc='upper right', fontsize=14)
     plt.show()
 
 def smooth_map(map_file, deg=1., norm=None):

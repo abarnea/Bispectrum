@@ -329,7 +329,6 @@ def find_valid_configs(i1: np.ndarray,
     return valid_configs
 
 
-@njit
 def compute_bispec_norm_factor(l1: int, l2: int, l3: int) -> float:
     """
     Computes the normalization factor of the averaged Bispectrum equation.
@@ -346,8 +345,7 @@ def compute_bispec_norm_factor(l1: int, l2: int, l3: int) -> float:
     
     lib.wig_table_init(val_init, 3)
     lib.wig_temp_init(val_init)
-    norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) \
-                        * (get_w3j(l1, l2, l3, 0, 0, 0))**2
+    norm_factor = ((l1*2+1) * (l2*2+1) * (l3*2+1))/(4*np.pi) * (get_w3j(l1, l2, l3, 0, 0, 0))**2
     lib.wig_temp_free()
     lib.wig_table_free()
 
