@@ -234,7 +234,7 @@ def create_bins_and_maps(alms: np.ndarray,
         i2_map (ndarray) : second bin map
         i3_map (ndarray) : third bin map
     """
-    i1_bin, i2_bin, i3_bin = select_bins(lmin, lmax, nbins, bins_to_use)
+    i1_bin, i2_bin, i3_bin = create_and_select_bins(lmin, lmax, nbins, bins_to_use)
     i1_map = hp.alm2map(filter_alms(alms, i1_bin))
     i2_map = hp.alm2map(filter_alms(alms, i2_bin))
     i3_map = hp.alm2map(filter_alms(alms, i3_bin))
