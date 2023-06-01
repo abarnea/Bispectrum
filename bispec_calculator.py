@@ -163,7 +163,7 @@ def filter_map_binned(sorted_alms: dict, bin: np.ndarray, nside=1024) -> np.ndar
     return hp.alm2map(unsort_alms(filtered_alms), nside=nside)
 
 
-def create_bins(lmin: int, lmax: int, nbins=1) -> List[np.ndarray]:
+def _create_bins(lmin: int, lmax: int, nbins=1) -> List[np.ndarray]:
     """
     Creates bins in an ell-range.
 
@@ -188,7 +188,7 @@ def create_bins(lmin: int, lmax: int, nbins=1) -> List[np.ndarray]:
     return bins
 
 
-def select_bins(lmin: int,
+def create_and_select_bins(lmin: int,
                 lmax: int,
                 nbins=1,
                 bins_to_use=[0, 0, 0]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -206,7 +206,7 @@ def select_bins(lmin: int,
         (ndarray, ndarray, ndarray) : three selected bins
     """
     bin1, bin2, bin3 = bins_to_use
-    bins = create_bins(lmin, lmax, nbins)
+    bins = _create_bins(lmin, lmax, nbins)
     return bins[bin1], bins[bin2], bins[bin3]
 
 
@@ -234,8 +234,7 @@ def create_bins_and_maps(alms: np.ndarray,
         i2_map (ndarray) : second bin map
         i3_map (ndarray) : third bin map
     """
-    bins = create_bins(lmin, lmax, nbins)
-    i1_bin, i2_bin, i3_bin = select_bins(bins, bins_to_use)
+    i1_bin, i2_bin, i3_bin = select_bins(lmin, lmax, nbins, bins_to_use)
     i1_map = hp.alm2map(filter_alms(alms, i1_bin))
     i2_map = hp.alm2map(filter_alms(alms, i2_bin))
     i3_map = hp.alm2map(filter_alms(alms, i3_bin))
