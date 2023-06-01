@@ -210,7 +210,7 @@ def select_bins(lmin: int,
     return bins[bin1], bins[bin2], bins[bin3]
 
 
-def create_bins_and_maps(alms: dict,
+def create_bins_and_maps(alms: np.ndarray,
                          lmin: int,
                          lmax: int,
                          nbins=1,
