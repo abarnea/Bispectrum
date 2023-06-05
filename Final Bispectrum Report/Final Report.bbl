@@ -166,6 +166,20 @@
          url={https://doi.org/10.1103\%2Fphysrevd.99.063511},
 }
 
+\bib{Scoccimarro_2012}{article}{
+      author={Scoccimarro, Rom{\'{a}}n},
+      author={Hui, Lam},
+      author={Manera, Marc},
+      author={Chan, Kwan~Chuen},
+       title={Large-scale bias and efficient generation of initial conditions
+  for nonlocal primordial non-gaussianity},
+        date={2012apr},
+     journal={Physical Review D},
+      volume={85},
+      number={8},
+         url={https://doi.org/10.1103\%2Fphysrevd.85.083002},
+}
+
 \bib{Takahashi_2017}{article}{
       author={Takahashi, Ryuichi},
       author={Hamana, Takashi},

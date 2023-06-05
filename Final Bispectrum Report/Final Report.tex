@@ -184,7 +184,6 @@
 \head
 {Ariel Barnea\\June 2023\\Argonne National Laboratory\\Final Bispectrum Report}
 
-\vspace{-1cm}
 \hypersetup{linkcolor=black}
 \renewcommand\contentsname{Table of Contents}
 \tableofcontents
@@ -206,19 +205,42 @@ As such, by exploring the Bispectrum, and specifically doing so in harmonic spac
 
 \subsection{The Purpose of this Report}
 
-I am writing this report to serve as a guide for any future researchers interested in the Bispectrum and non-Gaussianities. It is intended to explain all of the code I have written and the plots I have created during my time working on the Bispectrum project at Argonne National Laboratory. I also seek to explain the methodology and process behind the work of this project, so that any future researchers won't fall into some of the issues that we ran into and had to troubleshoot and fix. This guide also seeks to compile much of the theory, equations, and papers that underly the Power Spectrum and gravitationally-induced weak-lensing Bispectrum into one big guide that is readily accessible. Hopefully, this will also allow for a more bite-sized approach to understanding the maths behind the Bispectrum, as my goal is to compile this information in a more readable way. Finally, this guide also serves as a place to discuss some of the computational methods that I have learned in my time at Argonne. I seek to do so in a way that will help future researchers not have to go searching through the depths of Python package documentations and YouTube tutorials like I had to, and instead be a personal guide to understanding the underlying infrastructure and applications of these computational methods. I conclude this report with a brief discussion on the possible directions for future research with this project and Bispectrum code, along with some thoughts on what I learned from this project and my time working for the Computational Physics and Advanced Computing Group at Argonne National Laboratory, and a final acknowledgements (i.e. thank you's) to people that helped me along the way.
+I am writing this report to serve as a guide for any future researchers interested in the Bispectrum and non-Gaussianities. It is intended to explain all of the code I have written and the plots I have created during my time working on the Bispectrum project at Argonne National Laboratory. I also seek to explain the methodology and process behind the work of this project, so that any future researchers won't fall into some of the issues that we ran into and had to troubleshoot and fix. This guide also seeks to compile much of the theory, equations, and papers that underly the Power Spectrum and gravitationally-induced weak-lensing Bispectrum into one big guide that is readily accessible. Hopefully, this will also allow for a more bite-sized approach to understanding the maths behind the harmonic Bispectrum, as my goal is to compile this information in a more readable way. Finally, this guide also serves as a place to discuss some of the computational methods that I have learned in my time at Argonne. I seek to do so in a way that will help future researchers not have to go searching through the depths of Python package documentations and YouTube tutorials like I had to, and instead be a personal guide to understanding the underlying infrastructure and applications of these computational methods. I conclude this report with a brief discussion on the possible directions for future research with this project and Bispectrum code, along with some thoughts on what I learned from this project and my time working for the Computational Physics and Advanced Computing Group at Argonne National Laboratory, and a final acknowledgements (i.e. thank you's) to people that helped me along the way.
 
-\section{Methodology and Process}\label{methodology}
+\section{Estimator Equations and Theory}\label{theory}
 
-In this section, I discuss the theory behind the two main methods that we utilized when creating the Bispectrum calculator. This is in Section~\ref{theory}. Then, in Sections~\ref{wigner} and ~\ref{numba}, I go into some of the challenges that we ran into and the lessons we learned from trying to speed up the code from its prototype version.
+In this section, I discuss the theory behind the two main methods that we utilized when creating the Bispectrum calculator. It is intended to give an overview / compile all of the different estimator equation, theory, and information that others might find useful to have all in one place, if you are trying to delve into the world of Bispectrum calculations. The Python Numba package and Wigner-3j calculators are used often in this section; you can find additional information about the Numba and Wigner-3j theory, calculations, and uses in Sections~\ref{numba} and \ref{wigner}.
 
-\subsection{Theory Calculations and Equations}\label{theory}
+\subsection{The Angular Power Spectrum}\label{angPS}
+Before outlining these estimators, it would be useful to define the Angular Power Spectrum coefficients in spherical harmonic analysis:
+\begin{equation}
+    C_{\ell} = \frac{1}{2\ell + 1}\sum_{m=-\ell}^{\ell} \abs{a_{\ell m}}^2
+\end{equation}
 
-This subsection is intended to give an overview / compile all of the different theory calculations, equations, and information that others might find useful to have all in one place, if you are trying to delve into the world of Bispectrum calculations.
+where
+\begin{enumerate}
+    \item $\ell$ represents the multipole moment and characterizes the angular scale of the fluctuations
+    \item $m$ represents the azimuthal mode, which specifies the angular orientation of the oscillations
+    \item The $a_{\ell m}$'s are the spherical harmonic coefficients for a given multipole $\ell$ and azimuthal mode $m$ and determine the the amplitude and phase of the spherical harmonics at each $\ell$ and $m$
+    \begin{enumerate}
+        \item The spherical harmonics $Y_{\ell}^m \tp$ are given by:
+        \begin{equation}
+            Y_{\ell}^m \tp = \sqrt{\frac{2\ell + 1}{4\pi} \frac{(\ell - m)!}{(\ell + m)!}} \, a_{\ell m}
+        \end{equation}
+        such that any function $f\tp$ on the surface of a sphere can be represented as:
+        \begin{equation}
+            f\tp = \sum_{\ell = 0}^{\infty}\sum_{m = -\ell}^{\ell} a_{\ell m}Y_{\ell}^m\tp
+        \end{equation}
+    \end{enumerate}
+    \item The $2\ell + 1$ factor is the normalization factor for the number of terms in the sum, thereby allowing us to calculate the average power per multipole $\ell$
+    \item $C_{\ell}$ represents the angular Power Spectrum coefficient at a specific multipole moment $\ell$
+\end{enumerate}
 
-\subsubsection{Filter Average Method}\label{averagemethod}
+Overall, the angular Power Spectrum describes the distribution of power as a function of angular scales, and quantifies the correlation at different angular scales in the sky.
 
-The first method I will go into is the filter method, pulled from \cite{Bucher_2016}, which seeks to estimate the value of the bispectrum (and later, binned bispectrum). This method is primarily focused on calculating the individual $B_{\ell_1 \ell_2 \ell_3}$ values of the bispectrum and averaging them to find the overall averaged bispectrum. The equation for doing this is:
+\subsection{Filter Average Method}\label{averagemethod}
+
+The first method I will go into is the filter method, pulled from \cite{Bucher_2016}, which seeks to estimate the value of the Bispectrum (and later, binned bispectrum of a scalar field). This method is primarily focused on calculating the individual $B_{\ell_1 \ell_2 \ell_3}$ values of the Bispectrum and averaging them over all valid $B_{\ell_1 \ell_2 \ell_3}$ inside the bin triplets to find the overall averaged Bispectrum. The equation for doing this is:
 \begin{equation}
     B_{\ell_1\ell_2\ell_3} = \sqrt{N_{\Delta}^{\ell_1\ell_2\ell_3}} \sum_{m_1,m_2,m_3}
     \begin{pmatrix}
@@ -238,7 +260,10 @@ N_{\Delta}^{\ell_1\ell_2\ell_3} = \frac{(2\ell_1+1)(2\ell_2+1)(2\ell_3+1)}{4\pi}
     \end{pmatrix}^2
 \end{equation}
 
-Here, the quantity $\langle a_{\ell_1 m_1} a_{\ell_2 m_2} a_{\ell_3 m_3} \rangle$ is the CMB angular bispectrum and $N_{\Delta}^{\ell_1 \ell_2 \ell_3}$ can be thought of as the number of possible $(\ell_1, \ell_2, \ell_3)$ triangles on the celestial sphere. Note the use of the Wigner-3j values (see Section~\ref{wigner}) here. Also note that we excluded the polarization factors because we're dealing with scalar temperature fields. Further important information to note about these equations include that:
+Here, the quantity $\langle a_{\ell_1 m_1} a_{\ell_2 m_2} a_{\ell_3 m_3} \rangle$ is the CMB angular Bispectrum (where the $a_{\ell m}$'s are as before in Section~\ref{angPS}) and $N_{\Delta}^{\ell_1 \ell_2 \ell_3}$ can be thought of as the number of possible $(\ell_1, \ell_2, \ell_3)$ triangles on the celestial sphere. The $\begin{psmallmatrix}
+    \ell_1 & \ell_2 & \ell_3 \\
+    m_1 & m_2 & m_3
+\end{psmallmatrix}$ denotes the Wigner-3j coefficient (see Section~\ref{wigner}). Further important information to note about these equations include that:
 \begin{enumerate}
     \item The bispectrum is symmetric under the simultaneous exchange of its three multiple numbers $\ell_1$, $\ell_2$, $\ell_3$. Basically, we can just restrict our computation of $B_{\ell_1 \ell_2 \ell_3}$ to $\ell$ values s.t. $\ell_1 \leq \ell_2 \leq \ell_3$.
     \item The triangular condition must be satisfied, i.e. $\ell_1 + \ell_2 + \ell_3 = \text{constant}$.
@@ -248,7 +273,7 @@ Here, the quantity $\langle a_{\ell_1 m_1} a_{\ell_2 m_2} a_{\ell_3 m_3} \rangle
 
 Conditions 3 and 4 come from the fact that the $m$ values in the normalization factor are all equal to $0$. These conditions are very useful, and I would recommend becoming familiar with them as they speed up maths and computations.
 \npar
-We also went into the theoretical variance for this calculation, which is given by:
+We also computed the theoretical variance for this calculation, which is given by:
 
 \begin{equation}
     \operatorname{Var}\left(B_{\ell_{1} \ell_{2} \ell_{3}}\right)=g_{\ell_{1} \ell_{2} \ell_{3}} N_{\Delta}^{\ell_{1} \ell_{2} \ell_{3}} C_{\ell_{1}} C_{\ell_{2}} C_{\ell_{3}} \equiv V_{\ell_{1} \ell_{2} \ell_{3}}
@@ -268,7 +293,7 @@ and $g_{\ell_1 \ell_2 \ell_3}$ is equal to either 6, 2, or 1 depending on whethe
     V_{\ell_1 \ell_2 \ell_3} = 6 \cdot N_{\Delta}^{\ell_1 \ell_2 \ell_3} \cdot C_{\ell_1} C_{\ell_2} C_{\ell_3}
 \end{equation}
 
-It should be noted that, for the binned bispectrum:
+We can use this method to compute the averages over all valid bin triplets, thereby defining the binned Bispectrum as:
 \begin{equation}
     B_{i_1 i_2 i_3} = (\Xi_{i_1 i_2 i_3})^{-1} \sum_{\ell_1\in\Delta_1}\sum_{\ell_2\in\Delta_2}\sum_{\ell_3\in\Delta_3} B_{\ell_1 \ell_2 \ell_3}
 \end{equation}
@@ -279,8 +304,7 @@ where $\Xi_{i_1 i_2 i_3}$ is the number of $\ell$ triplets within the $(i_1,i_2,
     \operatorname{Var} (B_{i_1 i_2 i_3}) = \frac{g_{i_1 i_2 i_3}}{(\Xi_{i_1 i_2 i_3})^2} \sum_{\ell_1\in\Delta_1}\sum_{\ell_2\in\Delta_2}\sum_{\ell_3\in\Delta_3} N_{\Delta}^{\ell_1 \ell_2 \ell_3} C_{\ell_1} C_{\ell_2} C_{\ell_3} \equiv V_{i_1 i_2 i_3}
 \end{equation}
 
-
-\subsubsection{Map Method}\label{mapmethod}
+\subsection{Map Method}\label{mapmethod}
 
 The second method I will go into is the map method, also pulled from \cite{Bucher_2016}. This also seeks to estimate the value of the bispectrum, but utilizes a map-based approach instead of a computation, filter averaged method.
 \npar
@@ -289,7 +313,7 @@ This method stems from the straightforward computation of evaluating the integra
     B_{\ell_1 \ell_2 \ell_3}^{p_1 p_2 p_3, \rm{obs}} = \int \dd{\hat{\Omega}} M_{\ell_1}^{p_1, \rm{obs}}(\hat{\Omega}) M_{\ell_2}^{p_2, \rm{obs}}(\hat{\Omega}) M_{\ell_3}^{p_3, \rm{obs}}(\hat{\Omega})
 \end{equation}
 
-where the $\ell$ triplets here also satisfy the selection rules from the Filter Method. This computation would take a lot of time if not for the fact that binning leads to a massive reduction in computational cost with minimal resolution loss. To accomplish this, we divide the $\ell$-range $\left[\ell_{\min }, \ell_{\max }\right]$ into subintervals denoted by $\Delta_i=\left[\ell_i, \ell_{i+1}-1\right]$ where $i=0, \ldots,\left(N_{\text {bins }}-1\right)$ and $\ell_{N_{\text {bins }}}=\ell_{\max }+1$, so that the filtered maps are:
+where the $\ell$ triplets here also satisfy the selection rules from the Filter Method. This computation would take a lot of time if not for the fact that binning leads to a massive reduction in computational cost with minimal information loss. To accomplish this, we divide the $\ell$-range $\left[\ell_{\min }, \ell_{\max }\right]$ into subintervals denoted by $\Delta_i=\left[\ell_i, \ell_{i+1}-1\right]$ where $i=0, \ldots,\left(N_{\text {bins }}-1\right)$ and $\ell_{N_{\text {bins }}}=\ell_{\max }+1$, so that the filtered maps are:
 \begin{equation}
 M_i^p(\Omega)=\sum_{\ell \in \Delta_i} \sum_{m=-\ell}^{+\ell} a_{\ell m}^p Y_{\ell m}(\hat{\Omega})
 \end{equation}
@@ -303,7 +327,7 @@ where $\Xi_{i_1 i_2 i_3}$ is the number of $\ell$ triplets within the $\left(i_1
 \npar
 This method allows for a relatively straightforward and quick computation of $B_{i_1 i_2 i_3}$ from $a_{\ell m}$, as we will see in Section~\ref{code}.
 
-\subsubsection{Convergence Bispectrum}\label{convergencebispec}
+\subsection{Convergence Bispectrum}\label{convergencebispec}
 
 Most recently, we worked on finding the theoretical convergence bispectrum found in \cite{Munshi_2020}:
 \begin{equation}
@@ -315,20 +339,20 @@ such that:
     k_i = \frac{\ell_i}{\chi}
 \end{equation}
 
-where $B_{\delta}(\mathbf{k}_1, \mathbf{k}_2, \mathbf{k}_3; \chi)$ is given by:
+where $B_{\delta}(\mathbf{k}_1, \mathbf{k}_2, \mathbf{k}_3; \chi)$ is the 3-dimensional Bispectrum of the matter field, and it's given in tree-level perturbation theory by:
 \begin{equation}
     B_{\delta}(\mathbf{k}_1, \mathbf{k}_2, \mathbf{k}_3; \chi) = 2F_2(\mathbf{k}_1, \mathbf{k}_2, z)P_{\delta}(\mathbf{k}_1,z)P_{\delta}(\mathbf{k_2},z) + \text{cyc. perm}
 \end{equation}
 
 and
 \begin{equation}
-    F_2(\mathbf{k}_1, \mathbf{k}_2, z) = \frac57 a(k_1, z)a(k_2, z) + \frac12 \frac{k_1^2 + k_2^2}{k_1k_2}b(k_1, z)b (k_2,z)\cos\theta + \frac27 c(k_1, z)c(k_2,z)
+    F_2(\mathbf{k}_1, \mathbf{k}_2, z) = \frac57 a(k_1, z)a(k_2, z) + \frac12 \frac{k_1^2 + k_2^2}{k_1k_2}b(k_1, z)b (k_2,z)\cos\theta + \frac27 c(k_1, z)c(k_2,z)\cos^2\theta
 \end{equation}
 
 where we're using $a = b = c = 1$, giving us:
 
 \begin{equation}
-    F_2(\mathbf{k}_1, \mathbf{k}_2, z) = \frac57 + \frac12 \frac{k_1^2 + k_2^2}{k_1k_2}\cos\theta + \frac27
+    F_2(\mathbf{k}_1, \mathbf{k}_2, z) = \frac57 + \frac12 \frac{k_1^2 + k_2^2}{k_1k_2}\cos\theta + \frac27\cos^2\theta
 \end{equation}
 
 Which is needed for every cyclical permutation. We also require the lensing kernel $W(\chi, \chi_s)$, which is given by:
@@ -342,24 +366,7 @@ where the step function $\Theta(\chi_s - \chi)$ is there to ensure that the lens
     W(\chi, \chi_s) = \frac{\chi_s - \chi}{\chi\chi_s}
 \end{equation}
 
-Note that, for the CMB, the redshift is just $z = 1089$. Implementing all of this together yields the convergence bispectrum for a set of $\ell_1$, $\ell_2$, $\ell_3$ values, and can be done for $\ell$-bins to find the binned convergence bispectrum for some map.
-
-\subsubsection{Bispectrum Templates}
-
-A brief tangent I went down whilst writing my initial bispectrum function is the different local vs. non-local bispectrum templates. More information about these Bispectrum templates and non-Gaussianities overall can be found in \cite{Woods_2018}, which was instrumental in helping me understand these topics. For local $f_{\rm NL}$ potential, we have:
-\begin{equation}
-    \phi_{\rm NL} = \phi_{\rm Gauss} + f_{\rm NL} \left(\phi_{\rm Gauss}^2 - \langle\phi_{\rm Gauss}\rangle^2\right)
-\end{equation}
-
-For $g_{\rm NL}$, we have:
-\begin{equation}
-    \phi_{\rm NL} = \phi_{\rm Gauss} + g_{\rm NL}\left(\phi_{\rm Gauss}^3\right)
-\end{equation}
-
-And for non-local $f_{\rm NL}$, we have:
-\begin{equation}
-    \phi_{\rm NL} = \phi_{\rm Gauss} + f_{\rm NL}\left(\partial\phi_{\rm Gauss}^2 - \langle \partial \phi_{\rm Gauss} \rangle^2 \right)
-\end{equation}
+Note that, for the CMB, the redshift is just $z_s = 1089$, where the source comoving distance $\chi_s$ used herein corresponds to to this redshift $z_s$. Implementing all of this together yields the convergence bispectrum for a set of $\ell_1$, $\ell_2$, $\ell_3$ values, and can be done for $\ell$-bins to find the binned convergence bispectrum for some map.
 
 \subsubsection{Some Power Spectrum Notes}\label{powerspecnotes}
 
@@ -390,122 +397,30 @@ such that $k = (k_{\parallel}^2 + |\mathbf{k}_{\perp}|^2)^{1/2}$, where $\mathbf
     \lim_{k_{\parallel}\delta r\to\infty} C_{\ell}^{\text{shell}} = \frac{1}{r^2\Delta r} P_{\delta}\left(k=\frac{\ell}{r}\right)
 \end{equation}
 
-\subsection{Numba}\label{numba}
 
-Numba is a Just-In-Time (JIT) compiler for Python that specializes in optimizing and accelerating numerical computations. If you are a Python-only coder like I was when I first started using Numba and don't understand what this means, don't worry, I will explain it here! I will also explain how to use Numba, and why you should use Numba for computationally expensive and \textit{repetitive} tasks that don't involve sharing memory allocation.
-\npar
-First, a brief explanation of why we use Numba. Python is a very convenient, simple, and easy-to-use language with a lot of capabilities. You don't have to declare types, worry about pointers, allocate and free memory, etc. However, to allow the users (us) to get away with all of this, Python has to do all of this stuff internally. For example, declaring $i = 0$, you don't have to state that $i$ is an integer or unsigned integer, as Python will do this for you by creating an integer object with a value of $0$ and a ``reference'' $i$. But to access $i$, you have to access an object, not just straight bytes (i.e. a bunch of $0$ and $1$ bits). Creating and appending to lists means that Python has to allocate a bunch of space for the list, way more than you will probably need, and then tie the values in your list together every time you append. So basically, this makes things very convenient for you as the user, but not very computationally efficient, as it has to go through the Python interpreter and deal with all of this convenience.\footnote{This is why C is extremely speedy, because it compiles straight down into assembly and then machine code, and doesn't have to go through all of these hoops to operate | but it requires a lot more strict control, typesetting, and memory management.}
-\npar
-Numba bridges this gap with Python by compiling your Python code straight into highly-efficient machine code using just-in-time compilation techniques. Using the \texttt{@jit} function decorator (I will explain this shortly) on a function allows Numba to analyze the function code and apply various optimizations. It inspects the types of the input arguments and generates optimized machine code specific to those types. This process is known as type specialization. \texttt{@njit} is another Numba function decorator which stands for \texttt{No Python jit}, which is basically just ``jitting'' a function but without going through the Python interpreter. It is very important to note that jitting a function means you lose a lot of Python's capabilities (i.e. calling complex functions that aren't also jit-compatible, using Python data structures like lists and dictionaries, etc.). That's why jitting is so useful for repetitive computations like loops, where C shines, but not used for things like plotting, where Python shines. Since computing the Bispectrum, specifically the filter average method from Section~\ref{averagemethod}, requires a lot of looping and summing and not many Pythonic data structures and functions, this makes our Bispectra calculations a prime candidate for Numba. Hence why this section exists. However, before I get into how I used Numba, I want to talk briefly about parallelization.
-\npar
-Another very useful element of Numba is that you can parallelize your code across multiple threads. I primarily used the parallel loops functionality of Numba, as most of my Bispectrum calculations involved two or three nested for loops at a time (for example, when summing over all of the $m$ values in an $\ell_1$ and $\ell_2$ range, or summing over all of the $\ell$-values in an $i$-bin). Basically what this means is that I split up my computation of $B_{\ell_1 \ell_2 \ell_3}$ across multiple \textit{threads}. Threads are basically just independently run portions of a program that can be spread across multiple cores of your computer and run simultaneously. When you launch $n$ threads, you can think of your computer distributing the function into $n$ different parts and running them all concurrently. For example, if you want to thread a function that sums all the values from $1$ to $1600$ across $16$ threads, you can distribute the summing of the values $1$ to $100$ to thread 1, values $101$ to $200$ to thread 2, $201$ to $300$ to thread 3, etc.\footnote{This is not a good way to distribute this computation by the way, I'm just using this as an example.} This is a very useful concept in Computer Science, but not one I am going to flesh out today. Instead, I am going to talk about Numba's \texttt{parallel=True} capabilities when in a jitted function. Activating this flag will basically let Numba know that you want to distribute the function's job across multiple threads, and it will do it automatically across the number of threads you provide (normally, you have to manually do this). This automatic threading only works for \textit{loops} (since it's simple enough without having to do it manually), but conveniently, that's exactly what we need it for. So, when summing up Bispectrum values\footnote{Notice that this does not involve storing any values anywhere, which is why this works.}, you can parallelize the for loops across $n$ threads to speed up your computation by \textit{about} $n$ times.\footnote{Overhead costs of initializaing your threads and passing in the necessary parameters can slow this down.}
-\npar
-Okay, now I will very briefly explain how to use Numbas capabilities. Basically, whenever you want to jit a function, first make sure it can be jitted (otherwise Numba will give you an error), which you can do by checking if you have any non-jitted function calls or are using a bunch Pythonic data types in your function like dictionaries, lists, and/or objects. Then, you just add the jit function decorator \texttt{@njit} to the line before the function declaration, like:
-\begin{verbatim}
-    @njit
-    def foo(x: int) -> int:
-        return x
-\end{verbatim}
+\subsection{Bispectrum Templates}
 
-And that's it, your function is now jitted in no Python mode. To parallelize a loop specifically, you can just add the flag \texttt{parallel=True} to your function decorator, and then use a function like \texttt{prange} on a loop instead of \texttt{range}. For example:
-\begin{verbatim}
-    @njit(parallel=True)
-    def bar(n: int) -> int:
-        sum = 0
-        for i in prange(n):
-            sum += i
-        return sum
-\end{verbatim}
+A brief tangent I went down whilst writing my initial bispectrum function is the different local vs. non-local bispectrum templates. More information about these Bispectrum templates and non-Gaussianities overall can be found in \cite{Woods_2018}, which was instrumental in helping me understand these topics. For local $f_{\rm NL}$ potential, we have:
+\begin{equation}
+    \Phi_{\rm NL} = \phi_{\rm Gauss} + f_{\rm NL} \left(\phi_{\rm Gauss}^2 - \langle\phi_{\rm Gauss}\rangle^2\right)
+\end{equation}
 
-\texttt{prange} basically just distributes the job of looping across multiple threads. If you want to set the number of threads, you can just include the function \texttt{set\textunderscore num\textunderscore threads(n\textunderscore threads)}, where \texttt{n\textunderscore threads} is some integer number of threads, somewhere in the function, and that's it! For example:
-\begin{verbatim}
-    @njit(parallel=True)
-    def bar(n: int, num_threads: int) -> int:
-        sum = 0
-        set_num_threads(n_threads)
-        for i in prange(n):
-            sum += i
-        return sum
-\end{verbatim}
+For $g_{\rm NL}$, we have:
+\begin{equation}
+    \Phi_{\rm NL} = \phi_{\rm Gauss} + g_{\rm NL}\left(\phi_{\rm Gauss}^3\right)
+\end{equation}
 
-And don't forget to import all of these functions, by the way.
-\begin{verbatim}
-    from numba import jit, njit, prange, set_num_threads
-\end{verbatim}
+And for non-local $f_{\rm NL}$, we have terms to second order in $\phi$ involving derivative and antiderivative terms. For the equilateral model, we have:
+\begin{equation}
+    \Phi_{\rm EQ} = \phi_{\rm Gauss} + f_{\rm NL}\left[-3\phi^2 + 4 \partial^{-1}(\phi\ \partial\phi) + 2 \nabla^{-2}(\phi\  \nabla^2\phi) + 2 \nabla^{-2}(\partial \phi)^2 \right]
+\end{equation}
 
-Congratulations, that's basically everything you need to know about Numba for the purposes of Bispectrum computations!
-%
-\npar
-\textbf{An Aside: Numba Typing}
-\npar
-If you want to used lists and dictionaries with jitted functions, look into Numba's Typed libraries to declare these Numba-specific types. Basically, it just declares a specific type for the entire data structure so that Numba can parse it. You can find more information in Numba's documentation.
+And for the orthogonal model:
+\begin{equation}
+    \Phi_{\rm ORT} = \phi_{\rm Gauss} + f_{\rm NL}\left[-9\phi^2 + 10 \partial^{-1}(\phi\ \partial\phi) + 8 \nabla^{-2}(\phi\  \nabla^2\phi) + 8 \nabla^{-2}(\partial\phi)^2 \right]
+\end{equation}
 
-\subsection{Wigner-3j}\label{wigner}
-
-The Wigner-3j coefficients play a big role in many Bispectrum computations, so I am using this section to briefly discuss how we used them, the (many) issues we encountered with them, and how you can hopefully not have to deal with these because of this guide!
-\npar
-There were two main packages we used to compute the Wigner-3j coefficients, each with their benefits and drawbacks. I will summarize them both and explain which one we ended up using.
-
-\subsubsection{Spherical Wigner-3j Calculator}
-
-The first Python package I used to compute the Wigner-3j coefficients was \texttt{spherical}.\footnote{\href{https://pypi.org/project/spherical/}{https://pypi.org/project/spherical/}.} Spherical is specifically designed for evaluating and transforming Wigner's $\mathcal{D}$ matrices, Wigner's 3-j symbols, and spin-weighted (and scalar) spherical harmonics. I believe it relies on a recursive equation set to calculate the w3j values, and it does so very quickly. It also works in combination with numba's just-in-time environment, which is extremely useful for the filter average method of computing the Bispectrum, as explained in Section~\ref{averagemethod}.
-\npar
-This was my package of choice at the start. However, this package has two glaring issues that proved fatal.
-
-\begin{enumerate}
-    \item \textbf{It can't compute Wigner-3j values for high $\ell$, which I found to be somewhere around $\ell \approx 1000$.} I don't know why it can't, even after searching through the code to figure it out. It doesn't seem like the authors are aware of this issue, likely because they didn't use it to compute $\ell$ values on the order of $\ell \sim 10^3$. If you try to compute $\ell$ values greater than this range, the computation simply returns \texttt{nan}. Obviously, this is a very big issue for Bispectrum calculations, which can have high angular sky resolutions. As I mentiond, combing through the \texttt{spherical} package did not prove useful in figuring out what was wrong, and I couldn't find any documentation online either of this issue.
-    \item \textbf{It occasionally has sign issues in computation which can catastrophically skew overall Bispectra computations.} This was really bizarre. Sometimes, just the signs would be off, usually for lower $\ell$ values, and sometimes, the values would be orders of magnitude off, usually for high-ish $\ell$ values. I only realized this \textit{after} we switched to a different Wigner-3j package (see next subsubsection) and noticed a different in w3j values for the same $\ell$ and $m$ values. To determine correctness, I compared \texttt{spherical} to \texttt{pywigxjpf}, and used \texttt{SymPy} (these packages are the subject of the next two subsubsections) as an intermediary for confirmation; that's how I discovered this weird sign issue. We believed that the sign issues for lower $\ell$ computations caused the large skewedness for higher $\ell$ computations.
-\end{enumerate}
-
-These two issues, and the inability to figure out what was wrong with \texttt{spherical}, led us to a point where we were ready to recode the Wigner-3j methods of \texttt{spherical} ourselves. However, luckily, Salman knew of a different, albeit slower, package to compute Wigner-3j coefficients, which is what the next subsubsection will discuss: \texttt{pywigxjpf}.
-
-\subsubsection{pywigxjpf Wigner-3J Calculator}\label{pywigxjpf}
-
-The second, and current, Python package I used in my Bispectrum computations is \texttt{pywigxjpf}. This is a Python wrapper for the \texttt{wigxjpf} package, which I believe is coded in C. This package is specifically designed to evaluate Wigner 3j, 6j and 9j symbols using prime factorization and multi-word integer arithmetic. More information can be found in \cite{Johansson_2016}. This package has a higher barrier to entry to use than \texttt{spherical} and is also a lot slower than \texttt{spherical}, but has the very big benefit that it computes the Wigner-3j coefficients \textit{accurately} and for \textit{all $\ell$ values}, including $\ell \gtrsim  1000$, as confirmed by \texttt{SymPy} and \texttt{WolframAlpha}. I will explain some of these notes now.
-\npar
-The first big note I will mention about \texttt{pywigxjpf} is that \textbf{all $\ell$ and $m$ arguments \underline{must} be doubled when inputting them into the \texttt{wig} function}. I'm sure there is an explanation of why this is somewhere in the documentation, but I didn't really bother looking.
-\npar
-The second, more important note is that this package is \textit{a lot} slower than \texttt{spherical} and \underline{does not} work with Numba by default. Testing \texttt{spherical} against \texttt{pywigxjpf} showed a 500x speed up for the former over the latter. The big fatal drawback of course being that \texttt{spherical} doesn't compute the correct values. As such, even though it's slower, \texttt{pywigxjpf} was our package of choice, and what we use now. However, there is a way to get it working with numba, which is what I am to briefly explain now.
-\npar
-To get \texttt{pywigxjpf} working with numba, you basically have to use this weird wrapper function that I don't fully understand. It is called \texttt{nb\textunderscore wig3jj} and you have to import it using \texttt{cffi}. I've put the code here:
-\begin{verbatim}
-    from numba.core.typing import cffi_utils as cffi_support
-
-    try:
-        from pywigxjpf_ffi import ffi, lib
-    except ImportError:
-        from pywigxjpf.pywigxjpf_ffi import ffi, lib
-
-    cffi_support.register_module(pywigxjpf_ffi)
-
-    nb_wig3jj = pywigxjpf_ffi.lib.wig3jj
-\end{verbatim}
-
-Now, you can call \texttt{nb\textunderscore wig3jj} as normal (don't forget to double all inputs!). However, you will also need to allocate and free \underline{table} and \underline{temp} memory. Table memory can be allocated as follows:
-\begin{verbatim}
-    lib.wig_table_init(val_init, 3)
-\end{verbatim}
-
-where \texttt{val\textunderscore init} is just the largest $2\ell + 1$ value you are going to use, and the $3$ indicates that we're computing Wigner-3j values (use $6$ or $9$ for Wigner-6j and -9j respectively). You then also have to allocate temp memory:
-\begin{verbatim}
-    lib.wig_temp_init(val_init)
-\end{verbatim}
-
-where \texttt{val\textunderscore init} is the same as before. You have to allocate the table before a set of computations, and temp for \textit{each} computation. Once you are done with each computation, make sure you free the temp memory allocation using:
-\begin{verbatim}
-    lib.wig_temp_free()
-\end{verbatim}
-
-And once you are done with the full set of Wigner-3j computations, you can free the table memory using:
-\begin{verbatim}
-    lib.wig_table_free()
-\end{verbatim}
-
-I believe this freeing comes from the underlying C architecture. And that's how you use \texttt{pywigxjpf}! You can find a full breakdown of all of this, as well as examples, in the \texttt{w3j\textunderscore threading\textunderscore test.ipynb} notebook in my Bispectrum repository on Github (see Section~\ref{code}). I included the explanation of the Wigner-3j code here because I believe this is a required methodology step to get the code working, instead of new code I wrote.
-
-\subsubsection{An Aside: SymPy}
-
-SymPy is a Python package for symbolic mathematics and has a Wigner-3j calculator built in as well. It does most of its computation in underlying algebra, and isn't good for quick computations. However, I used it occasionally to confirm Wigner-3j calculations in Spherical and pywigxjpf, as I mentioned earlier. More information about SymPy can be found in \cite{SymPy}.
+More information about these specific models can be found in \cite{Scoccimarro_2012}.
 
 \section{Codes}\label{code}
 
@@ -626,25 +541,31 @@ This section presents some of the key figures from the various stages of the Bis
 
 \subsection{Power Spectrum Plots}\label{psplots}
 
-The first phase of the Bispectrum project was building the underlying Power Spectrum understanding and infrastructure. These key figures are some of the initial ones constructed during computation and comparison of the Power Spectrum. For the theory behind some of these plots, see Section~\ref{powerspecnotes}, and for the code, see Section~\ref{pscode} for the code. The first two plots are for the theory $C_{\ell} \sim \ell^{-3}$ field used to compute and compare the initial Power Spectrum and Bispectrum. The last plot is the refined Power Spectra for a Last Journey (LJ) density map.
+The first phase of the Bispectrum project was building the underlying Power Spectrum understanding and infrastructure. These key figures are some of the initial ones constructed during computation and comparison of the Power Spectrum. For the theory behind some of these plots, see Section~\ref{powerspecnotes}, and for the code, see Section~\ref{pscode} for the code. Figs.~\ref{fig:theory_l3_PS} and \ref{fig:residual_cl} are for the theory $C_{\ell} \sim \ell^{-3}$ field used to compute and compare the initial Power Spectrum and Bispectrum. Fig.~\ref{fig:lj_PS} is the refined Power Spectra for a Last Journey (LJ) density map.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{theory_l3_PS.png}}
-    \caption{The figure above illustrates the theory $C_{\ell} \sim \ell^{-3}$ Power Spectrum using three different methods of computing the corresponding $C_{\ell}$ values. The actual $C_{\ell}$'s, constructed directly from the $\ell$'s are plotted in blue, HEALPix's \texttt{anafast}-constructed $C_{\ell}$'s are depicted in orange, and the manually-computed $C_{\ell}$'s from \texttt{compute\us cls} can be found in green. From the plot, we can see that the actual and anafast $C_{\ell}$'s directly overlay each other, with the computed $C_{\ell}$'s providing a near direct overlay, with some background noise. This is particularly important since it demonstrates the ability to reconstruct the $C_{\ell}$'s manually, along with the accuracy of the helper functions to sort and compute $a_{\ell m}$'s and $C_{\ell}$'s. This provides useful for the resultant Bispectrum calculations later, as many of these underlying functions are used to compute the Bispectrum. Furthermore, some Bispectrum calculations, such as the Convergence Bispectrum, rely on accurate calculations of the Power Spectrum.}\label{fig:theory_l3_PS}
+    \caption{The figure above illustrates the theory $C_{\ell} \sim \ell^{-3}$ Power Spectrum using three different methods of computing the corresponding $C_{\ell}$ values. The actual $C_{\ell}$'s, constructed directly from the $\ell$'s are plotted in blue, HEALPix's \texttt{anafast}-constructed $C_{\ell}$'s are depicted in orange, and the manually-computed $C_{\ell}$'s from \texttt{compute\us cls} can be found in green.}\label{fig:theory_l3_PS}
 \end{figure}
+
+From Fig.~\ref{fig:theory_l3_PS}, we can see that the actual and anafast $C_{\ell}$'s directly overlay each other, with the computed $C_{\ell}$'s providing a near direct overlay, with some background noise. This is particularly important since it demonstrates the ability to reconstruct the $C_{\ell}$'s manually, along with the accuracy of the helper functions to sort and compute $a_{\ell m}$'s and $C_{\ell}$'s. This provides useful for the resultant Bispectrum calculations later, as many of these underlying functions are used to compute the Bispectrum. Furthermore, some Bispectrum calculations, such as the Convergence Bispectrum, rely on accurate calculations of the Power Spectrum.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{residual_cl.png}}
-    \caption{The figure above is a continuation of Fig.~\ref{fig:theory_l3_PS} and shows the fractional residual between the Computed $C_{\ell}$'s from the \texttt{compute\us cls} function against the actual $\ell^{-3}$ field. That is, the noise that was discussed in that figure can be seen here. We can observe that the magnitude of the fractional residual is small, confirming our supposition early that the Computed $C_{\ell}$'s match closely with what they should be, and that the functions used to compute them are accurate for Bispectrum computations later.}\label{fig:residual_cl}
+    \caption{The figure above is a continuation of Fig.~\ref{fig:theory_l3_PS} and shows the fractional residual between the Computed $C_{\ell}$'s from the \texttt{compute\us cls} function against the actual $\ell^{-3}$ field. That is, the noise that was discussed in that figure can be seen here.}\label{fig:residual_cl}
 \end{figure}
+
+From Fig.~\ref{fig:residual_cl}, we can observe that the magnitude of the fractional residual is small, confirming our supposition early that the Computed $C_{\ell}$'s match closely with what they should be, and that the functions used to compute them are accurate for Bispectrum computations later.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{lj_PS.png}}
-    \caption{The figure above demonstrates the Last Journey (LJ) Power Spectra using two $C_{\ell}$ computation methods, \texttt{anafast} and manual-computation in solid blue and solid purple respectively, along with $C_{\ell}$ computation from $P(k)$ for the thin finite spherical shell and the infinite shell, in dashed red and dotted blue respectively. More information about Last Journey can be found in \cite{Heitmann_2021}. The first important resultant that we can see from this figure is that, on an actual density map, i.e. the one from Last Journey, the \texttt{anafast} $C_{\ell}$ computation method and the manual computation method of \texttt{compute\us cls} predict the LJ Power Spectrum identically. This confirms the results of Figs.~\ref{fig:theory_l3_PS} and \ref{fig:residual_cl} that the underlying $a_{\ell m}$ sorting and $C_{\ell}$ computation methods work accurately. Then, we can see that the infinite shell computation creates a Power Spectrum of similar shape but different scaling compared to the predicted Power Spectrum, and the thin finite sphrical shell similar but with a different decay around multipole $\ell \sim 10^2$. This overplot is especially important because it culminates the work on the Power Spectra into one final plot, and represents the end for the Power Spectrum phase of the Bispectrum project.}\label{fig:lj_PS}
+    \caption{The figure above demonstrates the Last Journey (LJ) Power Spectra using two $C_{\ell}$ computation methods, \texttt{anafast} and manual-computation in solid blue and solid purple respectively, along with $C_{\ell}$ computation from $P(k)$ for the thin finite spherical shell and the infinite shell, in dashed red and dotted blue respectively. More information about Last Journey can be found in \cite{Heitmann_2021}.}\label{fig:lj_PS}
 \end{figure}
+
+The first important resultant that we can see Fig.~\ref{fig:lj_PS} is that, on an actual density map, i.e. the one from Last Journey, the \texttt{anafast} $C_{\ell}$ computation method and the manual computation method of \texttt{compute\us cls} predict the LJ Power Spectrum identically. This confirms the results of Figs.~\ref{fig:theory_l3_PS} and \ref{fig:residual_cl} that the underlying $a_{\ell m}$ sorting and $C_{\ell}$ computation methods work accurately. Then, we can see that the infinite shell computation creates a Power Spectrum of similar shape but different scaling compared to the predicted Power Spectrum, and the thin finite sphrical shell similar but with a different decay around multipole $\ell \sim 10^2$. This overplot is especially important because it culminates the work on the Power Spectra into one final plot, and represents the end for the Power Spectrum phase of the Bispectrum. There were some remaining scaling issues that were left unresolved as we wanted to move onto Bispectrum computations at this point in the project.
 
 \subsection{Bispectrum Plots}\label{bsplots}
 
@@ -652,19 +573,23 @@ The main portion of the Bispectrum, i.e. the Bispectrum calculations and plots, 
 
 \subsubsection{Last Journey Bispectrum}
 
-These figures are the initial gravitationally-induced weak-lensing Bispectrum figures on the Last Journey density map for equilateral $\ell$ triplets (see \cite{Heitmann_2021}). They were computed by taking the even multipole $\ell$ triplets (as the odd ones are just 0) in linear space and in log space. In both figures, i.e. Figs.~\ref{fig:initial_LJ_bispec_linear} and \ref{fig:initial_LJ_bispec_log}, there is a lot of noise in the resultant Bispectrum. These plots were the initial, incorrectly-scaled versions of the Bispectrum computation and using the \texttt{spherical} Wigner-3j function, which, as we know from Section~\ref{wigner}, was prone to errors. These plots are still important to show because they represent the initial test run of the filter average method of computing the Bispectrum from Section~\ref{averagemethod}. Furthermore, they gave an underlying Bispectrum plotting function which I was able to use for testing later. An important note about this is that, since the Bispectrum can have multiple kinds of shapes that are not just the equilateral ones depicted here, such as squeezed and orthogonal, this poses a challenge for plotting | hence why these plots are all for equilateral $\ell$ triplets (in addition to the fact that testing equilateral Bispectrum is more direct).
+These figures are the initial gravitationally-induced weak-lensing Bispectrum figures on the Last Journey density map for equilateral $\ell$ triplets (see \cite{Heitmann_2021}). They were computed by taking the even multipole $\ell$ triplets (as the odd ones are just 0) in linear space and in log space. In both figures, i.e. Figs.~\ref{fig:initial_LJ_bispec_linear} and \ref{fig:initial_LJ_bispec_log}, there is a lot of noise in the resultant Bispectrum. These plots depict the initial, incorrectly-scaled versions of the Bispectrum resulting from the faulty\texttt{spherical} Wigner-3j function, which, as we know from Section~\ref{wigner}, was prone to errors. The Bispectra in these plots also lacks the additional scaling factors that were added to the final Bispectrum calculator, as explained in Section~\ref{averagemethodcode}. These plots are still important to show because they represent the initial test run of the filter average method of computing the Bispectrum from Section~\ref{averagemethod}. Furthermore, they gave an underlying Bispectrum plotting function which I was able to use for testing later. An important note about this is that, since the Bispectrum can have multiple kinds of shapes that are not just the equilateral ones depicted here, such as squeezed and orthogonal, this poses a challenge for plotting | hence why these plots are all for equilateral $\ell$ triplets (in addition to the fact that testing equilateral Bispectrum is more direct).
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{initial_LJ_bispec_linear.png}}
-    \caption{The figure above shows the Last Journey Bispectrum plotted on a linear scale for equilateral even $\ell$ triplets. As can be seen, there is a lot of noise in the actual computation.}\label{fig:initial_LJ_bispec_linear}
+    \caption{The figure above shows the Last Journey Bispectrum plotted on a linear scale for equilateral even $\ell$ triplets.}\label{fig:initial_LJ_bispec_linear}
 \end{figure}
+
+As can be seen from Fig.~\ref{fig:initial_LJ_bispec_linear}, there is a lot of noise in the actual computation.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{initial_LJ_bispec_log.png}}
-    \caption{The figure above shows the Last Journey Bispectrum plotted on a log scale for equilateral even $\ell$ triplets. Similar to Fig.~\ref{fig:initial_LJ_bispec_linear}, there is a lot of noise in the Bispectrum, particularly around multiple triplet $\ell \sim 10^1$.}\label{fig:initial_LJ_bispec_log}
+    \caption{The figure above shows the Last Journey Bispectrum plotted on a log scale for equilateral even $\ell$ triplets.}\label{fig:initial_LJ_bispec_log}
 \end{figure}
+
+We can observe from Fig.~\ref{fig:initial_LJ_bispec_log} that, similar to Fig.~\ref{fig:initial_LJ_bispec_linear}, there is a lot of noise in the Bispectrum, particularly around multiple triplet $\ell \sim 10^1$.
 
 \subsubsection{Theory Bispectrum Comparison}\label{theorybispecplots}
 
@@ -673,26 +598,34 @@ The figures show key results from when we were testing the filter average method
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{gaussian_bispec_linear.png}}
-    \caption{The figure above illustrates the Gaussian gravitationally-induced weak-lensing Bispectrum on a linear scale for equilateral even multiple triplets $(\ell_1, \ell_2, \ell_3)$ using the filter average method and the \texttt{pywigxjpf} Wigner-3j functions. There is one large spike around $\ell \sim 125$, with some other small noise spikes around $\ell \sim 195$ and $\ell \sim 315$. However, these are on the order of $10^{-7}$, indicating that these spikes are likely just background noise. The Bispectrum we computed should theoretically be very close to $0$ because it is Gaussian (and the Bispectrum is a measure of non-Gaussianity, see Section~\ref{intro}), implying that any noise in the resultant computation would be exacerbated when plotting. The Bispectrum computed for a non-Gaussian map, such as Last Journey, we would likely see a lot distribution on an order-of-magnitude a lot higher than $10^{-7}$, trumping the small noise variation we see above. During testing, the scaling of the noise seen above was a lot larger, on the order of $10^{-2}$, indicating that there was a problem with the Gaussian Bispectrum computation. After fixing some missing factors and method-testing our Wigner-3j calculations, as described in Section~\ref{wigner}, we found the key finalized plot above for the theoretical $\ell^{-3}$ field.}\label{fig:gauss_bispec_linear}
+    \caption{The figure above illustrates the Gaussian gravitationally-induced weak-lensing Bispectrum on a linear scale for equilateral even multiple triplets $(\ell_1, \ell_2, \ell_3)$ using the filter average method and the \texttt{pywigxjpf} Wigner-3j functions.}\label{fig:gauss_bispec_linear}
 \end{figure}
+
+From Fig.~\ref{fig:gauss_bispec_linear}, we can observe that there is one large spike around $\ell \sim 125$, with some other small spikes around $\ell \sim 195$ and $\ell \sim 315$. As such, since the variance is higher at larger $\ell$ scales and we have fewer modes to average there, the expected noise level can appear more ``spikey''. The Bispectrum we computed should theoretically be zero because it is Gaussian (and the Bispectrum is a measure of non-Gaussianity, see Section~\ref{intro}), but any Gaussian map will, by chance, give non-zero values since we're not averaging over an infinite number of modes. Due to these factors, any noise in the resulting computation might be exacerbated when plotting. The Bispectrum computed for a non-Gaussian map, such as Last Journey, we would likely see a lot distribution on an order-of-magnitude a lot higher than $10^{-7}$, trumping the small noise variation we see above. During testing, the scaling of the noise seen above was a lot larger, on the order of $10^{-2}$, indicating that there was a problem with the Gaussian Bispectrum computation. After fixing some missing factors and method-testing our Wigner-3j calculations, as described in Section~\ref{wigner}, we found the key finalized plot above for the theoretical $\ell^{-3}$ field.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{25maps.png}}
-    \caption{The figure above highlighs the Gaussian Bispectra as computed for $25$ maps, with intervals of $\ell = 30$ between Gaussian Bispectra computation for $\ell$ triplets in the range of $\ell \in [0,300]$. Each line color represents the Gaussian Bispectra computed for each different map. We can see that there is a lot of spread in the initial computation of the Bispectrum up to around $\ell \sim 60$, but by $\ell \sim 85$, they all seem to even out to around 0. Importantly, the spread is all around a range of $B_{\ell_1 \ell_2 \ell_3} \in [-2.0\cdot 10^{-6}, 1.5 \cdot 10^{-6}]$ | a relatively low order-of-magnitude range. As explained above, since the Gaussian Bispectrum should be close to $0$, the low values of this Bispectrum was a good indicator to us that we are probably just seeing some noise from the $C_{\ell} \sim \ell^{-3}$ field that will be trumped by a Bispectrum computation on an actual non-Gaussian density field. The converging of all of the Gaussian Bispectra of the $25$ maps to 0 after $\ell \sim 85$, is what we would expect, which is also a positive indicator.}\label{fig:25maps}
+    \caption{The figure above highlighs the Gaussian Bispectra as computed for $25$ maps, with intervals of $\ell = 30$ between Gaussian Bispectra computation for $\ell$ triplets in the range of $\ell \in [0,300]$. Each line color represents the Gaussian Bispectra computed for each different map.}\label{fig:25maps}
 \end{figure}
+
+From Fig.~\ref{fig:25maps}, we can see that there is a lot of spread in the initial computation of the Bispectrum up to around $\ell \sim 60$, but by $\ell \sim 85$, they all seem to even out to around 0. Importantly, the spread is all around a range of $B_{\ell_1 \ell_2 \ell_3} \in [-2.0\cdot 10^{-6}, 1.5 \cdot 10^{-6}]$ | a relatively low order-of-magnitude range. As explained above, since the Gaussian Bispectrum should be close to $0$, the low values of this Bispectrum was a good indicator to us that we are probably just seeing some noise from the $C_{\ell} \sim \ell^{-3}$ field that will be trumped by a Bispectrum computation on an actual non-Gaussian density field. The converging of all of the Gaussian Bispectra of the $25$ maps to 0 after $\ell \sim 85$, is what we would expect, which is also a positive indicator.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{errorspread.png}}
-    \caption{The figure above is a continuation of Fig.~\ref{fig:25maps}, as it highlights the error spread of the mean Gaussian bispectra for the maps above. It can be observed from the plot that our error spread is pretty small, on the order of $B^{\rm gauss}_{\ell_1 \ell_2 \ell_3} \sim 10^{-7}$ to  $B^{\rm gauss}_{\ell_1 \ell_2 \ell_3} \sim 10^{-11}$.}\label{fig:errorspread}
+    \caption{The figure above is a continuation of Fig.~\ref{fig:25maps}, as it highlights the error spread of the mean Gaussian bispectra for the maps above.}\label{fig:errorspread}
 \end{figure}
+
+From Fig.~\ref{fig:errorspread}, it can be observed that our error spread is pretty small, on the order of $B^{\rm gauss}_{\ell_1 \ell_2 \ell_3} \sim 10^{-7}$ to  $B^{\rm gauss}_{\ell_1 \ell_2 \ell_3} \sim 10^{-11}$.
 
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{variance.png}}
-    \caption{The figure above demonstrates the computed variances for the Gaussian Bispectra of the $25$ maps from Figs.~\ref{fig:25maps} and \ref{fig:errorspread}. The black dashed line represents the Gaussian variance, as computed from \cite{Munshi_2020}. The solid blue line represents the theoretical $\ell^{-8}$ variance of a $C_{\ell} \sim \ell^{-3}$ field. The solid orange line represents the computed $V_{\ell_1 \ell_2 \ell_3}$ variance that is to be expected from the filter average method of Bispectrum calculation, as outlined in Section~\ref{averagemethod}. Finally, the solid green line represents the computed $V_{i_1 i_2 i_3}$ variance that is to be expected from the \textit{binned} Bispectrum estimator for the filter average method of Bispectrum calculation, as also outlined in Section~\ref{averagemethod}. From the plot, we can observe that the predicted variance $V_{\ell_1 \ell_2 \ell_3}$ follows closely with a variance of $\ell^{-8}$ that is expected for the theoretical field we used, and is very close to the Gaussian variance as well. This is important because the reason for using a theoretical field in the first place was to confirm the accuracy of our Bispectrum calculations and resulting variance calculations from \cite{Munshi_2020} against something that we can directly compare it against, i.e. the $C_{\ell} \sim \ell^{-3}$ field. Since all three of these variances follow each other closely, we were able to determine that the Gaussian Bispectrum calculations from \cite{Munshi_2020} were likely computed mostly correctly. The solid green $V_{i_1 i_2 i_3}$ is there for the binned case of the Gaussian Bispectrum as a reference point. Obviously, it does not follow the non-binned estimator case, as expected. A future test would be to go back and plot the variance of our now fully-functioning binned Bispectrum estimator against this expected variance $V_{i_1 i_2 i_3}$.}\label{fig:variance}
+    \caption{The figure above demonstrates the computed variances for the Gaussian Bispectra of the $25$ maps from Figs.~\ref{fig:25maps} and \ref{fig:errorspread}. The black dashed line represents the measured variance of the Bispectrum maps taken by squaring the standard deviation of the maps. The solid orange line represents the actual computed $V_{\ell_1 \ell_2 \ell_3}$ theory variance that is to be expected from the filter average method of Bispectrum calculation, as outlined in Section~\ref{averagemethod}. Finally, the solid green line represents the computed $V_{i_1 i_2 i_3}$ variance that is to be expected from the \textit{binned} Bispectrum estimator for the filter average method of Bispectrum calculation, as also outlined in Section~\ref{averagemethod}. The solid blue line represents a theoretical $\ell^{-8}$ variance to compare against the computed $V_{\ell_1 \ell_2 \ell_3}$ variance of the $C_{\ell} \sim \ell^{-3}$ field.}\label{fig:variance}
 \end{figure}
+
+From Fig.~\ref{fig:variance}, we can observe that the predicted variance $V_{\ell_1 \ell_2 \ell_3}$ follows closely with a variance of $\ell^{-8}$ that is expected for the theoretical field we used, and is very close to the measured variance from the maps themselves. This is important because the reason for using a theoretical field in the first place was to confirm the accuracy of our Bispectrum calculations and resulting variance calculations from \cite{Munshi_2020} against something that we can directly compare it against, i.e. the $C_{\ell} \sim \ell^{-3}$ field. Since all three of these variances follow each other closely, we were able to determine that the Gaussian Bispectrum calculations from \cite{Munshi_2020} were likely computed mostly correctly. The solid green $V_{i_1 i_2 i_3}$ is there for the binned case of the Gaussian Bispectrum as a reference point. Obviously, it does not follow the non-binned estimator case, as expected. A future test would be to go back and plot the variance of our now fully-functioning binned Bispectrum estimator against this expected variance $V_{i_1 i_2 i_3}$.
 
 Overall, what we observed from these gravitationally-induced weak-lensing Bispectrum computations on a theoretical field is that we were on the right track, albeit with some scaling issues here and there. The plot infrastructure was also good for testing, and proved extremely useful for the Map method of Bispectrum computation in Section~\ref{mapmethod}. As explained in Section~\ref{bispeccalccode}, once we fixed the scaling issue in the filter average method with the help of the map method code, we were able to finalize a Bispectrum calculator and compile it all into \texttt{bispec\us calculator.py}. Using this updated and hopefully correct gravitationally-induced weak-lensing Bispectrum calculator on the Last Journey density maps would be a good direction for future research.
 
@@ -701,14 +634,16 @@ Overall, what we observed from these gravitationally-induced weak-lensing Bispec
 \begin{figure}[H]
     \centering
     \tcbox{\includegraphics[width=.875\linewidth]{convergence_bispec.png}}
-    \caption{The figure above depicts the Convergence Bispectrum for the CMB at redshift $z_s = 1100$ for even equilateral multiple triplets $(\ell_1 \ell_2 \ell_3)$ with $\ell_{max} = 2000$ on a linear scale. The underlying cosmology is based on Planck 2018 parameters. The shape follows a very similar structure to that expected for equilateral Bispectra with these parameters from \cite{Namikawa_2019}, but note that there is still a present scaling issue that is being fixed.}\label{fig:conv_bispec_plot}
+    \caption{The figure above depicts the Convergence Bispectrum for the CMB at redshift $z_s = 1100$ for even equilateral multiple triplets $(\ell_1 \ell_2 \ell_3)$ with $\ell_{max} = 2000$ on a linear scale. The underlying cosmology is based on Planck 2018 parameters.}\label{fig:conv_bispec_plot}
 \end{figure}
+
+From Fig.~\ref{fig:conv_bispec_plot},  we can see that the shape follows a very similar structure to that expected for equilateral Bispectra with these parameters from \cite{Namikawa_2019}, but note that there is still a present scaling issue that is being fixed.
 
 \section{Conclusion}
 
 \subsection{Summary}
 
-Overall, this report summarizes code responsible for computing the gravitationally-induced weak-lensing Bispectrum via two different methods from \cite{Munshi_2020} | namely the filter average method and the map method | along with the Convergence Bispectrum from \cite{Namikawa_2019}. Information about this code, and the Github Repository that houses it, can be found in Section~\ref{code}. This report further compiles much of the theory and supporting papers necessary to create this code in Section~\ref{theory}. Section~\ref{methodology} also includes pertinent information about the methodology and techniques used to calculate the Bispectrum using Numba and Wigner-3j calculators, along with issues that arose during this process, in Sections~\ref{numba} and \ref{wigner}. Relevant figures that were found using this code can be found in Section~\ref{relevant_figures} as they were applied to Last Journey data (see \cite{Heitmann_2021}) and theoretical data. Information about the Bispectrum and the project itself can be found in Section~\ref{intro}. Directions for Future Research in the weak-lensing Bispectrum can be found in the next section (Section~\ref{future_research}). Concluding Thoughts and Acknowledgements can be found in Sections~\ref{finalthoughts} and \ref{acknowledgements} respectively.
+Overall, this report summarizes code responsible for computing the gravitationally-induced weak-lensing Bispectrum via two different methods from \cite{Munshi_2020} | namely the filter average method and the map method | along with the Convergence Bispectrum from \cite{Namikawa_2019}. Information about this code, and the Github Repository that houses it, can be found in Section~\ref{code}. This report further compiles much of the theory and supporting papers necessary to create this code in Section~\ref{theory}. Section~\ref{appendix} includes pertinent information about the methodology and techniques used to calculate the Bispectrum using Numba and Wigner-3j calculators, along with issues that arose during this process, in Sections~\ref{numba} and \ref{wigner} | this serves as a supplement to Section~\ref{theory}.. Relevant figures that were found using this code can be found in Section~\ref{relevant_figures} as they were applied to Last Journey data (see \cite{Heitmann_2021}) and theoretical data. Information about the Bispectrum and the project itself can be found in Section~\ref{intro}. Directions for Future Research in the weak-lensing Bispectrum can be found in the next section (Section~\ref{future_research}). Concluding Thoughts and Acknowledgements can be found in Sections~\ref{finalthoughts} and \ref{acknowledgements} respectively.
 
 \subsection{Directions for Future Research}\label{future_research}
 
@@ -733,6 +668,126 @@ Thank you to Dr. Patricia Larsen for being my mentor and guiding me through this
 \section{Bibliography}
 
 \bibliography{references}
+
+\section{Appendix}\label{appendix}
+
+\subsection{Numba}\label{numba}
+
+Numba is a Just-In-Time (JIT) compiler for Python that specializes in optimizing and accelerating numerical computations. If you are a Python-only coder like I was when I first started using Numba and don't understand what this means, don't worry, I will explain it here! I will also explain how to use Numba, and why you should use Numba for computationally expensive and \textit{repetitive} tasks that don't involve sharing memory allocation.
+\npar
+First, a brief explanation of why we use Numba. Python is a very convenient, simple, and easy-to-use language with a lot of capabilities. You don't have to declare types, worry about pointers, allocate and free memory, etc. However, to allow the users (us) to get away with all of this, Python has to do all of this stuff internally. For example, declaring $i = 0$, you don't have to state that $i$ is an integer or unsigned integer, as Python will do this for you by creating an integer object with a value of $0$ and a ``reference'' $i$. But to access $i$, you have to access an object, not just straight bytes (i.e. a bunch of $0$ and $1$ bits). Creating and appending to lists means that Python has to allocate a bunch of space for the list, way more than you will probably need, and then tie the values in your list together every time you append. So basically, this makes things very convenient for you as the user, but not very computationally efficient, as it has to go through the Python interpreter and deal with all of this convenience.\footnote{This is why C is extremely speedy, because it compiles straight down into assembly and then machine code, and doesn't have to go through all of these hoops to operate | but it requires a lot more strict control, typesetting, and memory management.}
+\npar
+Numba bridges this gap with Python by compiling your Python code straight into highly-efficient machine code using just-in-time compilation techniques. Using the \texttt{@jit} function decorator (I will explain this shortly) on a function allows Numba to analyze the function code and apply various optimizations. It inspects the types of the input arguments and generates optimized machine code specific to those types. This process is known as type specialization. \texttt{@njit} is another Numba function decorator which stands for \texttt{No Python jit}, which is basically just ``jitting'' a function but without going through the Python interpreter. It is very important to note that jitting a function means you lose a lot of Python's capabilities (i.e. calling complex functions that aren't also jit-compatible, using Python data structures like lists and dictionaries, etc.). That's why jitting is so useful for repetitive computations like loops, where C shines, but not useful for things like plotting, where Python shines. Since computing the Bispectrum, specifically the filter average method from Section~\ref{averagemethod}, requires a lot of looping and summing and not many Pythonic data structures and functions, this makes our Bispectra calculations a prime candidate for Numba. Hence why this section exists. However, before I get into how I used Numba, I want to talk briefly about parallelization.
+\npar
+Another very useful element of Numba is that you can parallelize your code across multiple threads. I primarily used the parallel loops functionality of Numba, as most of my Bispectrum calculations involved two or three nested for loops at a time (for example, when summing over all of the $m$ values in an $\ell_1$ and $\ell_2$ range, or summing over all of the $\ell$-values in an $i$-bin). Basically what this means is that I split up my computation of $B_{\ell_1 \ell_2 \ell_3}$ across multiple \textit{threads}. Threads are basically just independently run portions of a program that can be spread across multiple cores of your computer and run simultaneously. When you launch $n$ threads, you can think of your computer distributing the function into $n$ different parts and running them all concurrently. For example, if you want to thread a function that sums all the values from $1$ to $1600$ across $16$ threads, you can distribute the summing of the values $1$ to $100$ to thread 1, values $101$ to $200$ to thread 2, $201$ to $300$ to thread 3, etc.\footnote{This is not a good way to distribute this computation by the way, I'm just using this as an example.} This is a very useful concept in Computer Science, but not one I am going to flesh out today. Instead, I am going to talk about Numba's \texttt{parallel=True} capabilities when in a jitted function. Activating this flag will basically let Numba know that you want to distribute the function's job across multiple threads, and it will do it automatically across the number of threads you provide (normally, you have to manually do this). This automatic threading only works for \textit{loops} (since it's simple enough without having to do it manually), but conveniently, that's exactly what we need it for. So, when summing up Bispectrum values\footnote{Notice that this does not involve storing any values anywhere, which is why this works.}, you can parallelize the for loops across $n$ threads to speed up your computation by \textit{about} $n$ times.\footnote{Overhead costs of initializaing your threads and passing in the necessary parameters can slow this down.}
+\npar
+Okay, now I will very briefly explain how to use Numba's capabilities. Basically, whenever you want to jit a function, first make sure it can be jitted (otherwise Numba will give you an error), which you can do by checking if you have any non-jitted function calls or are using a bunch Pythonic data types in your function like dictionaries, lists, and/or objects. Then, you just add the jit function decorator \texttt{@njit} to the line before the function declaration, like:
+\begin{verbatim}
+    @njit
+    def foo(x: int) -> int:
+        return x
+\end{verbatim}
+
+And that's it, your function is now jitted in no Python mode. To parallelize a loop specifically, you can just add the flag \texttt{parallel=True} to your function decorator, and then use a function like \texttt{prange} on a loop instead of \texttt{range}. For example:
+\begin{verbatim}
+    @njit(parallel=True)
+    def bar(n: int) -> int:
+        sum = 0
+        for i in prange(n):
+            sum += i
+        return sum
+\end{verbatim}
+
+\texttt{prange} basically just distributes the job of looping across multiple threads. If you want to set the number of threads, you can just include the function \texttt{set\textunderscore num\textunderscore threads(n\textunderscore threads)}, where \texttt{n\textunderscore threads} is some integer number of threads, somewhere in the function, and that's it! For example:
+\begin{verbatim}
+    @njit(parallel=True)
+    def bar(n: int, num_threads: int) -> int:
+        sum = 0
+        set_num_threads(n_threads)
+        for i in prange(n):
+            sum += i
+        return sum
+\end{verbatim}
+
+And don't forget to import all of these functions, by the way.
+\begin{verbatim}
+    from numba import jit, njit, prange, set_num_threads
+\end{verbatim}
+
+Congratulations, that's basically everything you need to know about Numba for the purposes of Bispectrum computations!
+%
+\npar
+\textbf{An Aside: Numba Typing}
+\npar
+If you want to used lists and dictionaries with jitted functions, look into Numba's Typed libraries to declare these Numba-specific types. Basically, it just declares a specific type for the entire data structure so that Numba can parse it. You can find more information in Numba's documentation.
+
+\subsection{Wigner-3j}\label{wigner}
+
+The Wigner-3j coefficients play a big role in many Bispectrum computations, so I am using this section to briefly discuss how we used them, the (many) issues we encountered with them, and how you can hopefully not have to deal with these because of this guide!
+\npar
+There were two main packages we used to compute the Wigner-3j coefficients, each with their benefits and drawbacks. I will summarize them both and explain which one we ended up using.
+
+\subsubsection{Spherical Wigner-3j Calculator}
+
+The first Python package I used to compute the Wigner-3j coefficients was \texttt{spherical}.\footnote{\href{https://pypi.org/project/spherical/}{https://pypi.org/project/spherical/}.} Spherical is specifically designed for evaluating and transforming Wigner's $\mathcal{D}$ matrices, Wigner's 3-j symbols, and spin-weighted (and scalar) spherical harmonics. I believe it relies on a recursive equation set to calculate the w3j values, and it does so very quickly. It also works in combination with numba's just-in-time environment, which is extremely useful for the filter average method of computing the Bispectrum, as explained in Section~\ref{averagemethod}.
+\npar
+This was my package of choice at the start. However, this package has two glaring issues that proved fatal.
+
+\begin{enumerate}
+    \item \textbf{It can't compute Wigner-3j values for high $\ell$, which I found to be somewhere around $\ell \approx 1000$.} I don't know why it can't, even after searching through the code to figure it out. It doesn't seem like the authors are aware of this issue, likely because they didn't use it to compute $\ell$ values on the order of $\ell \sim 10^3$. If you try to compute $\ell$ values greater than this range, the computation simply returns \texttt{nan}. Obviously, this is a very big issue for Bispectrum calculations, which can have high angular sky resolutions. As I mentiond, combing through the \texttt{spherical} package did not prove useful in figuring out what was wrong, and I couldn't find any documentation online either of this issue.
+    \item \textbf{It occasionally has sign issues in computation which can catastrophically skew overall Bispectra computations.} This was really bizarre. Sometimes, just the signs would be off, usually for lower $\ell$ values, and sometimes, the values would be orders of magnitude off, usually for high-ish $\ell$ values. I only realized this \textit{after} we switched to a different Wigner-3j package (see next subsubsection) and noticed a different in w3j values for the same $\ell$ and $m$ values. To determine correctness, I compared \texttt{spherical} to \texttt{pywigxjpf}, and used \texttt{SymPy} (these packages are the subject of the next two subsubsections) as an intermediary for confirmation; that's how I discovered this weird sign issue. We believed that the sign issues for lower $\ell$ computations caused the large skewedness for higher $\ell$ computations.
+\end{enumerate}
+
+These two issues, and the inability to figure out what was wrong with \texttt{spherical}, led us to a point where we were ready to recode the Wigner-3j methods of \texttt{spherical} ourselves. However, luckily, Salman knew of a different, albeit slower, package to compute Wigner-3j coefficients, which is what the next subsubsection will discuss: \texttt{pywigxjpf}.
+
+\subsubsection{pywigxjpf Wigner-3J Calculator}\label{pywigxjpf}
+
+The second, and current, Python package I used in my Bispectrum computations is \texttt{pywigxjpf}. This is a Python wrapper for the \texttt{wigxjpf} package, which I believe is coded in C. This package is specifically designed to evaluate Wigner 3j, 6j and 9j symbols using prime factorization and multi-word integer arithmetic. More information can be found in \cite{Johansson_2016}. This package has a higher barrier to entry to use than \texttt{spherical} and is also a lot slower than \texttt{spherical}, but has the very big benefit that it computes the Wigner-3j coefficients \textit{accurately} and for \textit{all $\ell$ values}, including $\ell \gtrsim  1000$, as confirmed by \texttt{SymPy} and \texttt{WolframAlpha}. I will explain some of these notes now.
+\npar
+The first big note I will mention about \texttt{pywigxjpf} is that \textbf{all $\ell$ and $m$ arguments \underline{must} be doubled when inputting them into the \texttt{wig} function}. I'm sure there is an explanation of why this is somewhere in the documentation, but I didn't really bother looking.
+\npar
+The second, more important note is that this package is \textit{a lot} slower than \texttt{spherical} and \underline{does not} work with Numba by default. Testing \texttt{spherical} against \texttt{pywigxjpf} showed a 500x speed up for the former over the latter.\footnote{This is for the default behavior of both, i.e. running \texttt{spherical}'s Wigner-3j calculator and \texttt{pywigxjpf}'s Wigner-3j calculator without any Numba optimization or threading. After optimizations, we're able to close the gap between the two substantially.} The big fatal drawback of course being that \texttt{spherical} doesn't compute the correct values. As such, even though it's slower, \texttt{pywigxjpf} was our package of choice, and what we use now. However, there is a way to get it working with Numba, which is what I am to briefly explain now. Doing so leads to a massive boost in performance and makes \texttt{pywigxjpf} a good option for computing the Wigner-3j coefficients in place of \texttt{spherical}.\footnote{\texttt{spherical}'s computation is still faster, even with optimizations, but not by an extraordinary amount | but regardless, it does so incorrectly.}
+\npar
+To get \texttt{pywigxjpf} working with numba, you basically have to use this weird wrapper function that I don't fully understand. It is called \texttt{nb\textunderscore wig3jj} and you have to import it using \texttt{cffi}. I've put the code here:
+\begin{verbatim}
+    from numba.core.typing import cffi_utils as cffi_support
+
+    try:
+        from pywigxjpf_ffi import ffi, lib
+    except ImportError:
+        from pywigxjpf.pywigxjpf_ffi import ffi, lib
+
+    cffi_support.register_module(pywigxjpf_ffi)
+
+    nb_wig3jj = pywigxjpf_ffi.lib.wig3jj
+\end{verbatim}
+
+Now, you can call \texttt{nb\textunderscore wig3jj} as normal (don't forget to double all inputs!). However, you will also need to allocate and free \underline{table} and \underline{temp} memory. Table memory can be allocated as follows:
+\begin{verbatim}
+    lib.wig_table_init(val_init, 3)
+\end{verbatim}
+
+where \texttt{val\textunderscore init} is just the largest $2\ell + 1$ value you are going to use, and the $3$ indicates that we're computing Wigner-3j values (use $6$ or $9$ for Wigner-6j and -9j respectively). You then also have to allocate temp memory:
+\begin{verbatim}
+    lib.wig_temp_init(val_init)
+\end{verbatim}
+
+where \texttt{val\textunderscore init} is the same as before. You have to allocate the table before a set of computations, and temp for \textit{each} computation. Once you are done with each computation, make sure you free the temp memory allocation using:
+\begin{verbatim}
+    lib.wig_temp_free()
+\end{verbatim}
+
+And once you are done with the full set of Wigner-3j computations, you can free the table memory using:
+\begin{verbatim}
+    lib.wig_table_free()
+\end{verbatim}
+
+I believe this freeing comes from the underlying C architecture. And that's how you use \texttt{pywigxjpf}! You can find a full breakdown of all of this, as well as examples, in the \texttt{w3j\textunderscore threading\textunderscore test.ipynb} notebook in my Bispectrum repository on Github (see Section~\ref{code}). I included the explanation of the Wigner-3j code here because I believe this is a required methodology step to get the code working, instead of new code I wrote.
+
+\subsubsection{An Aside: SymPy}
+
+SymPy is a Python package for symbolic mathematics and has a Wigner-3j calculator built in as well. It does most of its computation in underlying algebra, and isn't good for quick computations. However, I used it occasionally to confirm Wigner-3j calculations in Spherical and pywigxjpf, as I mentioned earlier. More information about SymPy can be found in \cite{SymPy}.
+
 
 }
 \end{document}
