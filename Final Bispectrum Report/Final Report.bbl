@@ -1,0 +1,195 @@
+% \bib, bibdiv, biblist are defined by the amsrefs package.
+\begin{bibdiv}
+\begin{biblist}
+
+\bib{Bucher_2016}{article}{
+      author={Bucher, Martin},
+      author={Racine, Benjamin},
+      author={van Tent, Bartjan},
+       title={The binned bispectrum estimator: template-based and
+  non-parametric cmb non-gaussianity searches},
+        date={2016},
+      eprint={1509.08107},
+}
+
+\bib{CCL}{misc}{
+      author={{Chisari}, Nora~Elisa},
+      author={{Alonso}, David},
+      author={{Krause}, Elisabeth},
+      author={{Leonard}, C.~Daniellle},
+      author={{Bull}, Philip},
+      author={{Neveu}, J{\'e}r{\'e}my},
+      author={{Villarreal}, Antonia~Sierra},
+      author={{Singh}, Sukhdeep},
+      author={{McClintock}, Thomas},
+      author={{Ellison}, John},
+      author={{Du}, Zilong},
+      author={{Zuntz}, Joe},
+      author={{Mead}, Alexander},
+      author={{Joudaki}, Shahab},
+      author={{Lorenz}, Christiane~S.},
+      author={{Troester}, Tilman},
+      author={{Sanchez}, Javier},
+      author={{Lanusse}, Francois},
+      author={{Ishak}, Mustapha},
+      author={{Hlozek}, Ren{\'e}e},
+      author={{Blazek}, Jonathan},
+      author={{Campagne}, Jean-Eric},
+      author={{Almoubayyed}, Husni},
+      author={{Eifler}, Tim},
+      author={{Kirby}, Matthew},
+      author={{Kirkby}, David},
+      author={{Plaszczynski}, St{\'e}phane},
+      author={{Slosar}, Anze},
+      author={{Vrastil}, Michal},
+      author={{Wagoner}, Erika~L.},
+       title={{CCL: Core Cosmology Library}},
+         how={Astrophysics Source Code Library, record ascl:1901.003},
+        date={2019},
+}
+
+\bib{Heitmann_2021}{article}{
+      author={Heitmann, Katrin},
+      author={Frontiere, Nicholas},
+      author={Rangel, Esteban},
+      author={Larsen, Patricia},
+      author={Pope, Adrian},
+      author={Sultan, Imran},
+      author={Uram, Thomas},
+      author={Habib, Salman},
+      author={Finkel, Hal},
+      author={Korytov, Danila},
+      author={Kovacs, Eve},
+      author={Rizzi, Silvio},
+      author={Insley, Joe},
+      author={Knowles, Janet Y.~K.},
+       title={The last journey. i. an extreme-scale simulation on the mira
+  supercomputer},
+        date={2021jan},
+     journal={The Astrophysical Journal Supplement Series},
+      volume={252},
+      number={2},
+       pages={19},
+         url={https://doi.org/10.3847\%2F1538-4365\%2Fabcc67},
+}
+
+\bib{Johansson_2016}{article}{
+      author={Johansson, H.~T.},
+      author={Forss{\'{e} }n, C.},
+       title={Fast and accurate evaluation of wigner
+  3{\textdollar}j{\textdollar}, 6{\textdollar}j{\textdollar}, and
+  9{\textdollar}j{\textdollar} symbols using prime factorization and multiword
+  integer arithmetic},
+        date={2016jan},
+     journal={{SIAM} Journal on Scientific Computing},
+      volume={38},
+      number={1},
+       pages={A376\ndash A384},
+         url={https://doi.org/10.1137\%2F15m1021908},
+}
+
+\bib{CAMB}{misc}{
+      author={{Lewis}, Antony},
+      author={{Challinor}, Anthony},
+       title={{CAMB: Code for Anisotropies in the Microwave Background}},
+         how={Astrophysics Source Code Library, record ascl:1102.026},
+        date={2011},
+}
+
+\bib{SymPy}{article}{
+      author={Meurer, Aaron},
+      author={Smith, Christopher~P.},
+      author={Paprocki, Mateusz},
+      author={\v{C}ert\'{i}k, Ond\v{r}ej},
+      author={Kirpichev, Sergey~B.},
+      author={Rocklin, Matthew},
+      author={Kumar, AMiT},
+      author={Ivanov, Sergiu},
+      author={Moore, Jason~K.},
+      author={Singh, Sartaj},
+      author={Rathnayake, Thilina},
+      author={Vig, Sean},
+      author={Granger, Brian~E.},
+      author={Muller, Richard~P.},
+      author={Bonazzi, Francesco},
+      author={Gupta, Harsh},
+      author={Vats, Shivam},
+      author={Johansson, Fredrik},
+      author={Pedregosa, Fabian},
+      author={Curry, Matthew~J.},
+      author={Terrel, Andy~R.},
+      author={Rou\v{c}ka, \v{S}t\v{e}p\'{a}n},
+      author={Saboo, Ashutosh},
+      author={Fernando, Isuru},
+      author={Kulal, Sumith},
+      author={Cimrman, Robert},
+      author={Scopatz, Anthony},
+       title={Sympy: symbolic computing in python},
+        date={2017-01},
+        ISSN={2376-5992},
+     journal={PeerJ Computer Science},
+      volume={3},
+       pages={e103},
+         url={https://doi.org/10.7717/peerj-cs.103},
+}
+
+\bib{Munshi_2020}{article}{
+      author={Munshi, D},
+      author={Namikawa, T},
+      author={Kitching, T~D},
+      author={McEwen, J~D},
+      author={Takahashi, R},
+      author={Bouchet, F~R},
+      author={Taruya, A},
+      author={Bose, B},
+       title={The weak lensing bispectrum induced by gravity},
+        date={2020feb},
+     journal={Monthly Notices of the Royal Astronomical Society},
+      volume={493},
+      number={3},
+       pages={3985\ndash 3995},
+         url={https://doi.org/10.1093\%2Fmnras\%2Fstaa296},
+}
+
+\bib{Namikawa_2019}{article}{
+      author={Namikawa, Toshiya},
+      author={Bose, Benjamin},
+      author={Bouchet, Fran{\c{c}}ois~R.},
+      author={Takahashi, Ryuichi},
+      author={Taruya, Atsushi},
+       title={{CMB} lensing bispectrum: Assessing analytical predictions
+  against full-sky lensing simulations},
+        date={2019mar},
+     journal={Physical Review D},
+      volume={99},
+      number={6},
+         url={https://doi.org/10.1103\%2Fphysrevd.99.063511},
+}
+
+\bib{Takahashi_2017}{article}{
+      author={Takahashi, Ryuichi},
+      author={Hamana, Takashi},
+      author={Shirasaki, Masato},
+      author={Namikawa, Toshiya},
+      author={Nishimichi, Takahiro},
+      author={Osato, Ken},
+      author={Shiroyama, Kosei},
+       title={Full-sky gravitational lensing simulation for large-area galaxy
+  surveys and cosmic microwave background experiments},
+        date={2017nov},
+     journal={The Astrophysical Journal},
+      volume={850},
+      number={1},
+       pages={24},
+         url={https://doi.org/10.3847\%2F1538-4357\%2Faa943d},
+}
+
+\bib{Woods_2018}{misc}{
+      author={Woods, Nick},
+       title={Cosmological predictions from the primordial universe:
+  Non-gaussianities},
+        date={2018},
+}
+
+\end{biblist}
+\end{bibdiv}

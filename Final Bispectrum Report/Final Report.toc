@@ -1,0 +1,36 @@
+\babel@toc {english}{}
+\contentsline {section}{\numberline {1}Introduction}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}What is the Bispectrum}{2}{subsection.1.1}%
+\contentsline {subsection}{\numberline {1.2}The Purpose of this Report}{2}{subsection.1.2}%
+\contentsline {section}{\numberline {2}Methodology and Process}{3}{section.2}%
+\contentsline {subsection}{\numberline {2.1}Theory Calculations and Equations}{3}{subsection.2.1}%
+\contentsline {subsubsection}{\numberline {2.1.1}Filter Average Method}{3}{subsubsection.2.1.1}%
+\contentsline {subsubsection}{\numberline {2.1.2}Map Method}{4}{subsubsection.2.1.2}%
+\contentsline {subsubsection}{\numberline {2.1.3}Convergence Bispectrum}{5}{subsubsection.2.1.3}%
+\contentsline {subsubsection}{\numberline {2.1.4}Bispectrum Templates}{5}{subsubsection.2.1.4}%
+\contentsline {subsubsection}{\numberline {2.1.5}Some Power Spectrum Notes}{6}{subsubsection.2.1.5}%
+\contentsline {subsection}{\numberline {2.2}Numba}{6}{subsection.2.2}%
+\contentsline {subsection}{\numberline {2.3}Wigner-3j}{8}{subsection.2.3}%
+\contentsline {subsubsection}{\numberline {2.3.1}Spherical Wigner-3j Calculator}{9}{subsubsection.2.3.1}%
+\contentsline {subsubsection}{\numberline {2.3.2}pywigxjpf Wigner-3J Calculator}{9}{subsubsection.2.3.2}%
+\contentsline {subsubsection}{\numberline {2.3.3}An Aside: SymPy}{11}{subsubsection.2.3.3}%
+\contentsline {section}{\numberline {3}Codes}{11}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Power Spectrum}{11}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Bispectrum Calculator}{12}{subsection.3.2}%
+\contentsline {subsubsection}{\numberline {3.2.1}Filter Average Method}{13}{subsubsection.3.2.1}%
+\contentsline {subsubsection}{\numberline {3.2.2}Map Method}{15}{subsubsection.3.2.2}%
+\contentsline {subsubsection}{\numberline {3.2.3}Bispectrum Calculator Accuracy Notes}{16}{subsubsection.3.2.3}%
+\contentsline {subsubsection}{\numberline {3.2.4}Final Bispectrum Calculator Thoughts}{17}{subsubsection.3.2.4}%
+\contentsline {subsection}{\numberline {3.3}Convergence Bispectrum}{17}{subsection.3.3}%
+\contentsline {section}{\numberline {4}Relevant Figures}{18}{section.4}%
+\contentsline {subsection}{\numberline {4.1}Power Spectrum Plots}{18}{subsection.4.1}%
+\contentsline {subsection}{\numberline {4.2}Bispectrum Plots}{21}{subsection.4.2}%
+\contentsline {subsubsection}{\numberline {4.2.1}Last Journey Bispectrum}{22}{subsubsection.4.2.1}%
+\contentsline {subsubsection}{\numberline {4.2.2}Theory Bispectrum Comparison}{23}{subsubsection.4.2.2}%
+\contentsline {subsubsection}{\numberline {4.2.3}Convergence Bispectrum}{28}{subsubsection.4.2.3}%
+\contentsline {section}{\numberline {5}Conclusion}{28}{section.5}%
+\contentsline {subsection}{\numberline {5.1}Summary}{28}{subsection.5.1}%
+\contentsline {subsection}{\numberline {5.2}Directions for Future Research}{29}{subsection.5.2}%
+\contentsline {subsection}{\numberline {5.3}Final Thoughts}{29}{subsection.5.3}%
+\contentsline {subsection}{\numberline {5.4}Acknowledgements}{29}{subsection.5.4}%
+\contentsline {section}{\numberline {6}Bibliography}{30}{section.6}%
