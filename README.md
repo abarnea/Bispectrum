@@ -1,7 +1,7 @@
 # Bispectrum
 Bispectrum Calculations in harmonic space for Argonne National Laboratory.
 
-The main, usable code can be found in bispec_calculator.py.
+The main, usable code can be found in `bispec_calculator.py`.
 
 Full documentation can be found here:
 
